@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ivory: #f8f5ef;
+  --color-cream: #efe8dd;
+  --color-taupe: #b7a697;
+  --color-taupe-dark: #8f7f71;
+  --color-cocoa: #51443c;
+  --color-cocoa-deep: #3a302a;
+  --color-sage: #a7b1a0;
+  --color-sage-dark: #7d8a75;
+  --color-paper: #ffffff;
+
+  --font-serif: var(--font-cormorant), "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-photo: 1.25rem;
+
+  --ease-gentle: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    background-color: var(--color-ivory);
+    color: var(--color-cocoa);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-sage) 45%, transparent);
+    color: var(--color-cocoa-deep);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-cocoa);
+    outline-offset: 3px;
+    border-radius: 0.375rem;
+  }
+}
+
+@layer components {
+  /* Soft film grain across the whole page. Pure CSS, no network request. */
+  .film-grain::after {
+    content: "";
+    position: fixed;
+    inset: -50%;
+    pointer-events: none;
+    z-index: 60;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply;
+  }
+
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--color-taupe-dark);
+  }
+
+  .prose-jojo {
+    font-size: 1.075rem;
+    line-height: 1.85;
+    color: color-mix(in oklab, var(--color-cocoa) 92%, white);
+  }
+
+  .prose-jojo p + p {
+    margin-top: 1.25em;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Gentle hover zoom for photographs. */
+  .photo-zoom img,
+  .photo-zoom .photo-zoom-target {
+    transition: transform 900ms var(--ease-gentle);
+  }
+  @media (hover: hover) {
+    .photo-zoom:hover img,
+    .photo-zoom:hover .photo-zoom-target {
+      transform: scale(1.035);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .photo-zoom img,
+    .photo-zoom .photo-zoom-target {
+      transition: none;
+      transform: none !important;
+    }
+  }
+
+  .paper {
+    background-color: #fffdf9;
+    background-image:
+      linear-gradient(transparent 0, transparent calc(2rem - 1px), color-mix(in oklab, var(--color-taupe) 18%, transparent) calc(2rem - 1px), color-mix(in oklab, var(--color-taupe) 18%, transparent) 2rem);
+    background-size: 100% 2rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    padding: 0.7rem 1.4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition:
+      background-color 200ms,
+      color 200ms,
+      border-color 200ms,
+      opacity 200ms;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--color-cocoa);
+    color: var(--color-ivory);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-cocoa-deep);
+  }
+  .btn-ghost {
+    border: 1px solid color-mix(in oklab, var(--color-cocoa) 25%, transparent);
+    color: var(--color-cocoa);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--color-cream);
+  }
+  .btn-danger {
+    background: #9b3d32;
+    color: white;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #7e3128;
+  }
+
+  .field {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid color-mix(in oklab, var(--color-taupe) 70%, transparent);
+    background: white;
+    padding: 0.65rem 0.85rem;
+    font-size: 1rem;
+    color: var(--color-cocoa);
+  }
+  .field:focus {
+    outline: 2px solid var(--color-sage-dark);
+    outline-offset: 0;
+    border-color: transparent;
+  }
+  .label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-cocoa);
+  }
+  .hint {
+    margin-top: 0.3rem;
+    font-size: 0.8rem;
+    color: var(--color-taupe-dark);
+  }
+}
