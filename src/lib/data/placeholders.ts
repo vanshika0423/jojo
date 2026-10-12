@@ -21,8 +21,8 @@ export function placeholderPhotos(count: number, offset = 0): Photo[] {
     const [w, h] = ratios[n % ratios.length];
     return {
       id: `placeholder-${n}`,
-      publicId: "",
-      version: 0,
+      originalUrl: "",
+      variants: [],
       width: w * 300,
       height: h * 300,
       caption: null,
@@ -41,17 +41,15 @@ export function placeholderPhotos(count: number, offset = 0): Photo[] {
 export function placeholderVideos(count: number): Video[] {
   return Array.from({ length: count }, (_, i) => ({
     id: `placeholder-video-${i}`,
-    publicId: "",
-    version: 0,
+    videoUrl: "",
+    contentType: null,
+    posterUrl: null,
     width: 1600,
     height: 900,
     duration: null,
     title: null,
     caption: null,
     recordedOn: null,
-    posterPublicId: null,
-    posterVersion: null,
-    posterOffset: null,
     isFeatured: i === 0,
     published: true,
     position: i,

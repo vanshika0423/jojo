@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, type PanInfo } from "motion/react";
-import { CloudImage } from "@/components/media/cloud-image";
 import { PhotoPlaceholder } from "@/components/media/photo-placeholder";
-import { downloadUrl } from "@/lib/cloudinary/urls";
-import { isCloudinaryConfigured } from "@/lib/env";
+import { ResponsiveImage } from "@/components/media/responsive-image";
+import { downloadUrl, hasImage } from "@/lib/media";
 import { formatDate } from "@/lib/format";
 import type { Photo } from "@/lib/types";
 
@@ -101,7 +100,7 @@ export function Lightbox({
   };
 
   const canDownload =
-    allowDownloads && photo && !photo.placeholder && photo.allowDownload && isCloudinaryConfigured;
+    allowDownloads && photo && hasImage(photo) && photo.allowDownload && Boolean(photo.originalUrl);
 
   return (
     <AnimatePresence>
@@ -124,11 +123,7 @@ export function Lightbox({
             <div className="flex items-center gap-1">
               {canDownload ? (
                 <a
-                  href={downloadUrl(
-                    photo.publicId,
-                    photo.version,
-                    `jojo-${photo.takenOn ?? photo.id.slice(0, 8)}`,
-                  )}
+                  href={downloadUrl(photo.originalUrl)}
                   className="text-ivory/80 hover:text-ivory flex h-11 items-center gap-2 rounded-full px-4 text-sm hover:bg-white/10"
                   download
                 >
@@ -168,14 +163,13 @@ export function Lightbox({
                 className="absolute inset-0 flex cursor-grab touch-pan-y items-center justify-center px-2 active:cursor-grabbing sm:px-20"
               >
                 <div className="relative h-full w-full">
-                  {photo.placeholder || !isCloudinaryConfigured ? (
+                  {!hasImage(photo) ? (
                     <div className="absolute inset-[8%] overflow-hidden rounded-2xl">
                       <PhotoPlaceholder tone={index!} />
                     </div>
                   ) : (
-                    <CloudImage
-                      publicId={photo.publicId}
-                      version={photo.version}
+                    <ResponsiveImage
+                      variants={photo.variants}
                       alt={photo.alt || photo.caption || "A photograph of Jojo"}
                       sizes="100vw"
                       priority

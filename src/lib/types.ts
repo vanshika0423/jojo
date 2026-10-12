@@ -1,9 +1,14 @@
 // Shapes shared by public pages and the admin dashboard.
 
+/** A resized copy of a photo, `w` pixels wide. */
+export type ImageVariant = { w: number; url: string };
+
 export type Photo = {
   id: string;
-  publicId: string;
-  version: number;
+  /** The untouched file as uploaded (used for downloads). */
+  originalUrl: string;
+  /** Web-sized copies, smallest first, for responsive images. */
+  variants: ImageVariant[];
   width: number;
   height: number;
   caption: string | null;
@@ -30,17 +35,16 @@ export type Album = {
 
 export type Video = {
   id: string;
-  publicId: string;
-  version: number;
+  videoUrl: string;
+  contentType: string | null;
+  /** Thumbnail image (made from a frame at upload, or uploaded separately). */
+  posterUrl: string | null;
   width: number | null;
   height: number | null;
   duration: number | null;
   title: string | null;
   caption: string | null;
   recordedOn: string | null;
-  posterPublicId: string | null;
-  posterVersion: number | null;
-  posterOffset: number | null;
   isFeatured: boolean;
   published: boolean;
   position: number;
@@ -108,15 +112,26 @@ export type AdminPhoto = Photo & {
   createdAt: string;
 };
 
-/** What Cloudinary returns from a direct upload, as sent back to the server. */
-export type UploadedAsset = {
-  public_id: string;
-  version: number;
-  signature: string;
-  width?: number;
-  height?: number;
-  format?: string;
-  bytes?: number;
-  duration?: number;
-  original_filename?: string;
+/** A photo uploaded from the dashboard, sent to the server to be saved. */
+export type PhotoUpload = {
+  /** Blob folder, e.g. "forever-jojo/photos/<uuid>". */
+  key: string;
+  originalUrl: string;
+  contentType: string;
+  variants: ImageVariant[];
+  width: number;
+  height: number;
+  originalFilename: string;
+};
+
+/** A video uploaded from the dashboard, sent to the server to be saved. */
+export type VideoUpload = {
+  key: string;
+  videoUrl: string;
+  contentType: string;
+  posterUrl: string | null;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+  originalFilename: string;
 };

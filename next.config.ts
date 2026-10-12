@@ -14,13 +14,6 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
-  images: {
-    // Photos are delivered by Cloudinary through a custom loader
-    // (see src/components/media/cloud-image.tsx), so Next's optimizer is
-    // only ever asked for remote Cloudinary URLs.
-    remotePatterns: [new URL("https://res.cloudinary.com/**")],
-    qualities: [75],
-  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

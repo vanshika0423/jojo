@@ -12,11 +12,10 @@ import {
 import { Thumb } from "@/components/admin/thumb";
 import { notify, report } from "@/components/admin/toast";
 import { ConfirmButton, Drawer, EmptyState, Field, StatusPill, Toggle } from "@/components/admin/ui";
-import { uploadSingle } from "@/components/admin/uploader";
 import type { AdminPhotoFilter } from "@/lib/data/admin";
 import { formatBytes } from "@/lib/format";
-import { imageUrl } from "@/lib/cloudinary/urls";
-import { isCloudinaryConfigured } from "@/lib/env";
+import { ResponsiveImage } from "@/components/media/responsive-image";
+import { uploadPhoto } from "@/lib/upload-client";
 import type { HeroSettings } from "@/lib/settings";
 import { cn } from "@/lib/cn";
 import type { AdminPhoto, Album } from "@/lib/types";
@@ -387,8 +386,8 @@ function PhotoEditor({
   const replace = async (file: File) => {
     try {
       setReplaceProgress(0);
-      const asset = await uploadSingle(file, "photo", setReplaceProgress);
-      if (report(await replacePhoto({ id: photo.id, asset }), "Photo replaced")) onSaved();
+      const upload = await uploadPhoto(file, setReplaceProgress);
+      if (report(await replacePhoto({ id: photo.id, upload }), "Photo replaced")) onSaved();
     } catch (e) {
       notify(e instanceof Error ? e.message : "Upload failed", "error");
     } finally {
@@ -416,14 +415,12 @@ function PhotoEditor({
           className="bg-cream relative overflow-hidden rounded-xl"
           style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
         >
-          {isCloudinaryConfigured && photo.publicId ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl(photo.publicId, { width: 900, version: photo.version })}
-              alt={photo.alt ?? photo.caption ?? ""}
-              className="absolute inset-0 h-full w-full object-contain"
-            />
-          ) : null}
+          <ResponsiveImage
+            variants={photo.variants}
+            alt={photo.alt ?? photo.caption ?? ""}
+            sizes="(min-width: 768px) 420px, 100vw"
+            className="object-contain"
+          />
         </div>
         <dl className="text-taupe-dark mt-3 grid grid-cols-2 gap-1 text-xs">
           <dt>File</dt>

@@ -15,7 +15,7 @@ dashboard at `/admin` where everything can be changed without touching code.
 
 1. [What’s inside](#whats-inside)
 2. [Technology](#technology)
-3. [Setup guide](#setup-guide) — PostgreSQL, Cloudinary, running locally
+3. [Setup guide](#setup-guide) — PostgreSQL, Vercel Blob, running locally
 4. [Deploying to Vercel](#deploying-to-vercel)
 5. [Using the dashboard](#using-the-dashboard)
 6. [How it works](#how-it-works) — security, performance, media
@@ -42,18 +42,18 @@ skip-link and keyboard navigation, reduced-motion support everywhere, and a soft
 
 ## Technology
 
-| Piece      | Used for                                                   | Version                            |
-| ---------- | ---------------------------------------------------------- | ---------------------------------- |
-| Next.js    | App Router, Cache Components, Server Actions, `proxy.ts`   | 16.4                               |
-| React      | UI                                                         | 19.3                               |
-| TypeScript | Types                                                      | 5.x                                |
-| Tailwind   | Styling (`@theme` design tokens in `src/app/globals.css`)  | 4.x                                |
-| Motion     | Animations (`motion/react`, formerly Framer Motion)        | 14.x                               |
-| PostgreSQL | All text, albums, captions, letters, settings and sign-ins | any PostgreSQL 13+, `postgres` 3.x |
-| Cloudinary | Storing originals, optimised image & video delivery        | cloudinary 2.x (server SDK)        |
-| Zod        | Validating every input on the server                       | 4.x                                |
-| Supabase   | _Optional_ — sign in with Supabase Auth instead            | @supabase/ssr 0.12                 |
-| Vercel     | Hosting                                                    | —                                  |
+| Piece       | Used for                                                   | Version                            |
+| ----------- | ---------------------------------------------------------- | ---------------------------------- |
+| Next.js     | App Router, Cache Components, Server Actions, `proxy.ts`   | 16.4                               |
+| React       | UI                                                         | 19.3                               |
+| TypeScript  | Types                                                      | 5.x                                |
+| Tailwind    | Styling (`@theme` design tokens in `src/app/globals.css`)  | 4.x                                |
+| Motion      | Animations (`motion/react`, formerly Framer Motion)        | 14.x                               |
+| PostgreSQL  | All text, albums, captions, letters, settings and sign-ins | any PostgreSQL 13+, `postgres` 3.x |
+| Vercel Blob | Storing photos (originals + web-sized copies) and videos   | @vercel/blob 2.x                   |
+| Zod         | Validating every input on the server                       | 4.x                                |
+| Supabase    | _Optional_ — sign in with Supabase Auth instead            | @supabase/ssr 0.12                 |
+| Vercel      | Hosting                                                    | —                                  |
 
 Node.js **20.9 or newer** is required.
 
@@ -61,8 +61,8 @@ Node.js **20.9 or newer** is required.
 
 ## Setup guide
 
-You need a **PostgreSQL database**, a free [Cloudinary](https://cloudinary.com) account, and (to go live)
-[Vercel](https://vercel.com). Allow about 20 minutes.
+You need a **PostgreSQL database** and a [Vercel](https://vercel.com) account (for file storage with Vercel Blob,
+and to put the site online). Allow about 20 minutes.
 
 ### 1. PostgreSQL (database and sign-in)
 
@@ -106,18 +106,28 @@ npm run db:create-admin
 Type your email and a password (at least 10 characters; it’s hidden as you type). Run it again for each family
 member who should have access — or with an existing email to change its password.
 
-### 2. Cloudinary (photos and videos)
+### 2. Vercel Blob (photos and videos)
 
-1. Sign up at <https://cloudinary.com>. Your **cloud name**, **API key** and **API secret** are on the console’s
-   dashboard / **Settings → API Keys**.
-2. That’s it — the site creates its own folders (`forever-jojo/photos`, `/videos`, `/posters`).
-3. Check your plan’s upload limits (**Settings → Usage / Plan**). On the Free plan images can be up to **10 MB** and
-   videos up to **100 MB**; set `NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB` / `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB` to match so
-   the dashboard warns before uploading. Larger videos are sent in 20 MB pieces automatically.
+Photos and videos are stored in [Vercel Blob](https://vercel.com/docs/vercel-blob).
+
+1. Sign in at <https://vercel.com> (it’s easiest to first import this GitHub repository as a project — see
+   [Deploying to Vercel](#deploying-to-vercel)).
+2. Open the **Storage** tab → **Create** → **Blob**, give it a name (e.g. `jojo-media`) and connect it to your
+   project. Vercel adds the `BLOB_READ_WRITE_TOKEN` variable to the project automatically.
+3. For running on your computer, copy that token too: in the Blob store’s page open **`.env.local`** (or
+   **Settings**), copy `BLOB_READ_WRITE_TOKEN=…` and paste it into your `.env.local`.
+
+How uploads work: when you add photos in the dashboard, **your browser** makes small web-sized copies (480, 960, 1600
+and 2400 px wide, in WebP) and uploads them together with the untouched original. Visitors only ever download the
+small copies. Videos are stored and played exactly as uploaded — MP4 (H.264) plays everywhere; some iPhone `.mov`
+(HEVC) files don’t play in Chrome on Windows, so export those as MP4 if needed. A thumbnail is taken from the video
+automatically (you can upload your own).
+
+Blob storage is free up to your plan’s limits; check usage in the Blob store’s page on Vercel.
 
 ### 3. Run it on your computer
 
-Add the Cloudinary values from step 2 to `.env.local`, then:
+With `DATABASE_URL` and `BLOB_READ_WRITE_TOKEN` in `.env.local`:
 
 ```bash
 npm run dev
@@ -127,17 +137,14 @@ Open <http://localhost:3000> for the site and <http://localhost:3000/admin> for 
 
 Without a database the site still runs and shows its placeholders, so you can look around first.
 
-| Variable                            | Where it comes from                         | Secret? |
-| ----------------------------------- | ------------------------------------------- | ------- |
-| `NEXT_PUBLIC_SITE_URL`              | Your domain, e.g. `https://foreverjojo.com` | no      |
-| `DATABASE_URL`                      | Your PostgreSQL connection string           | **yes** |
-| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | Cloudinary dashboard                        | no      |
-| `CLOUDINARY_API_KEY`                | Cloudinary → Settings → API Keys            | **yes** |
-| `CLOUDINARY_API_SECRET`             | Cloudinary → Settings → API Keys            | **yes** |
-| `CLOUDINARY_FOLDER` _(optional)_    | Folder name, default `forever-jojo`         | no      |
-| `NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB`   | Your Cloudinary plan’s image limit          | no      |
-| `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB`   | Your Cloudinary plan’s video limit          | no      |
-| `DATABASE_POOL_SIZE` _(optional)_   | Connections per server instance, default 5  | no      |
+| Variable                          | Where it comes from                         | Secret? |
+| --------------------------------- | ------------------------------------------- | ------- |
+| `NEXT_PUBLIC_SITE_URL`            | Your domain, e.g. `https://foreverjojo.com` | no      |
+| `DATABASE_URL`                    | Your PostgreSQL connection string           | **yes** |
+| `BLOB_READ_WRITE_TOKEN`           | Vercel → Storage → your Blob store          | **yes** |
+| `NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB` | Largest photo you can upload, default 30    | no      |
+| `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB` | Largest video you can upload, default 500   | no      |
+| `DATABASE_POOL_SIZE` _(optional)_ | Connections per server instance, default 5  | no      |
 
 ### Optional: sign in with Supabase Auth
 
@@ -196,9 +203,9 @@ Go to **`/admin`** and sign in. Every page explains itself; here’s the short v
 
 Changes appear on the website within seconds of saving.
 
-**Photo tips:** phone photos (JPG/HEIC) are perfect — no need to resize. The original file is kept untouched in
-Cloudinary; visitors get a smaller, modern-format copy sized for their screen. Wide landscape photos work best for the
-homepage hero.
+**Photo tips:** phone photos (JPG) are perfect — no need to resize. The original file is kept untouched; visitors
+get a smaller copy sized for their screen. iPhone HEIC photos may need exporting as JPG first (Chrome on Windows can’t
+read HEIC). Wide landscape photos work best for the homepage hero.
 
 ---
 
@@ -215,9 +222,12 @@ homepage hero.
   in production); only its SHA-256 hash is stored, and signing out deletes it. Sessions last 30 days.
 - **All input is validated with Zod** on the server (`src/app/admin/actions/*`), every query is parameterised, and
   each change runs in a single transaction.
-- **Secrets never reach the browser.** `DATABASE_URL` and the Cloudinary API secret are only used server-side
-  (guarded by `server-only`). Browsers upload directly to Cloudinary with a short-lived signature for exactly the
-  allowed parameters, and the server **verifies Cloudinary’s response signature** before saving anything.
+- **Secrets never reach the browser.** `DATABASE_URL` and `BLOB_READ_WRITE_TOKEN` are only used server-side (guarded
+  by `server-only`). Browsers upload directly to Vercel Blob with a short-lived token from `/api/blob`, which is only
+  issued to a signed-in admin, for one validated file path, allowed file types and a maximum size. Before saving,
+  the server **checks every file really exists in your Blob store**, inside that upload’s own folder.
+- Uploaded files have unguessable addresses, but anyone who has a file’s exact address can open it (that’s how public
+  websites serve images). Keep truly private photos out of the site.
 - Row level security is enabled (with no policies) on every table, so if the database is hosted on Supabase its
   automatic public API can’t read or change anything.
 - The site sends `X-Frame-Options`, `nosniff`, a strict referrer policy and `X-Robots-Tag: noindex` on `/admin`;
@@ -228,17 +238,17 @@ homepage hero.
 
 - Public pages are **prerendered** and cached with Next.js Cache Components (`'use cache'` + `cacheTag`). Saving in
   the dashboard calls `updateTag(...)`, so changes show up immediately without rebuilding.
-- Images use `next/image` with a **Cloudinary loader**: responsive `srcset`, lazy loading, `f_auto` (AVIF/WebP) and
-  `q_auto`. Only the hero image is preloaded.
+- Photos are served as **web-sized WebP copies** made at upload (480–2400 px) with a responsive `srcset`, so phones
+  download small files; images below the fold load lazily, and only the hero image loads eagerly.
 - The gallery loads 40 photos at a time with infinite scroll, so it stays fast with thousands of photos.
-- Videos are pre-encoded at upload time into **720p (phones)** and **1280p** MP4 renditions (`q_auto`, `vc_auto`) and
-  streamed with HTTP range requests; nothing downloads until a visitor presses play, and posters are lightweight images.
+- Videos stream with HTTP range requests; nothing downloads until a visitor presses play, and thumbnails are small
+  images. Shorter or smaller clips load faster on mobile networks.
 - Animations are transform/opacity only and switch off with “reduce motion”.
 
 ### Media storage
 
-- Originals are preserved in Cloudinary under `forever-jojo/…`. Deleting or replacing media in the dashboard also
-  removes the old file from Cloudinary.
+- Each photo or video gets its own folder in Vercel Blob (`forever-jojo/photos/<id>/…`), holding the untouched
+  original and its web-sized copies. Deleting or replacing media in the dashboard also removes the old files.
 - Photo order uses fractional positions, so moving one photo updates one row.
 
 ---
@@ -254,6 +264,7 @@ src/
       (dashboard)/     Protected dashboard pages (layout re-checks admin access)
       actions/         Server actions: auth, media (uploads/photos/videos), content (everything else)
     api/photos/        Read-only gallery paging (published photos only)
+    api/blob/          Upload tokens for Vercel Blob (admins only)
     opengraph-image.tsx, sitemap.ts, robots.ts, icon.svg
   components/
     site/ home/ gallery/ video/ timeline/ letters/ media/ motion/   Public UI
@@ -262,7 +273,9 @@ src/
     data/public.ts     Cached public readers (+ placeholders when not configured)
     data/admin.ts      Dashboard readers (admin-checked)
     db/                PostgreSQL connection
-    cloudinary/        URL builders (browser-safe) and signing/deleting (server-only)
+    storage/blob.ts    Vercel Blob checks and deletes (server-only)
+    upload-client.ts   In-browser resizing and uploads
+    media.ts           srcset / download helpers
     supabase/          Optional Supabase Auth client
     auth.ts            Sign-in, sessions, requireAdmin / assertAdmin
     password.ts        scrypt password hashing
@@ -281,24 +294,26 @@ npm run db:migrate       # apply new database migrations
 npm run db:create-admin  # add an admin or change a password
 ```
 
-| Problem                                            | Fix                                                                                                 |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Sign-in page says the database isn’t connected     | Set `DATABASE_URL`, run `npm run db:migrate`, then restart (`npm run dev`) or redeploy.             |
-| “That email and password didn’t work”              | Run `npm run db:create-admin` with that email to set a new password.                                |
-| Forgot the password                                | Same: `npm run db:create-admin` resets it and signs out old sessions.                               |
-| `db:migrate` can’t connect                         | Check the connection string; hosted databases usually need `?sslmode=require` at the end.           |
-| “Cloudinary isn’t configured yet” in the dashboard | Add the three `CLOUDINARY_*` / cloud-name variables and redeploy.                                   |
-| Upload says the file is too large                  | Your Cloudinary plan limit — compress the file, or upgrade and raise `NEXT_PUBLIC_MAX_*_UPLOAD_MB`. |
-| A photo doesn’t appear on the website              | It’s probably still a **Draft** — open it and switch on **Published**.                              |
-| Share preview shows the old photo                  | Social networks cache previews; use their “debug/refresh preview” tools.                            |
+| Problem                                            | Fix                                                                                           |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Sign-in page says the database isn’t connected     | Set `DATABASE_URL`, run `npm run db:migrate`, then restart (`npm run dev`) or redeploy.       |
+| “That email and password didn’t work”              | Run `npm run db:create-admin` with that email to set a new password.                          |
+| Forgot the password                                | Same: `npm run db:create-admin` resets it and signs out old sessions.                         |
+| `db:migrate` can’t connect                         | Check the connection string; hosted databases usually need `?sslmode=require` at the end.     |
+| “Vercel Blob isn’t connected yet” in the dashboard | Add `BLOB_READ_WRITE_TOKEN` to `.env.local` (or Vercel) and restart / redeploy.               |
+| Upload says the file is too large                  | Compress it, or raise `NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB` / `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB`.  |
+| “This browser can’t read this photo”               | It’s probably an iPhone HEIC photo: export it as JPG (or upload from Safari on a Mac/iPhone). |
+| A video won’t play in Chrome                       | Probably iPhone HEVC: export it as MP4 (H.264) and use **Replace video**.                     |
+| A photo doesn’t appear on the website              | It’s probably still a **Draft** — open it and switch on **Published**.                        |
+| Share preview shows the old photo                  | Social networks cache previews; use their “debug/refresh preview” tools.                      |
 
 Good to know:
 
 - **Downloads:** the download button only appears when you allow it, but anyone can still screenshot a photo they can
   see. Keep truly private photos unpublished.
 - **Private letters** are visible only in the dashboard, never on the website.
-- To keep a backup, use your database host’s backups or `pg_dump "$DATABASE_URL" > jojo-backup.sql`; Cloudinary keeps every
-  original you upload.
+- To keep a backup, use your database host’s backups or `pg_dump "$DATABASE_URL" > jojo-backup.sql`; Vercel Blob keeps
+  every original you upload (keep your own copies of precious photos too).
 
 ---
 

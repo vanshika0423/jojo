@@ -1,7 +1,5 @@
 import { ImageResponse } from "next/og";
-import { imageUrl } from "@/lib/cloudinary/urls";
 import { getSettings } from "@/lib/data/public";
-import { isCloudinaryConfigured } from "@/lib/env";
 
 export const alt = "Forever Jojo — 11 March 2017, forever";
 export const size = { width: 1200, height: 630 };
@@ -10,16 +8,8 @@ export const contentType = "image/png";
 /** Share preview: the homepage hero photograph with Jojo's name over it. */
 export default async function OpengraphImage() {
   const { heroPhoto } = await getSettings();
-  const photo =
-    heroPhoto && isCloudinaryConfigured
-      ? imageUrl(heroPhoto.publicId, {
-          width: size.width,
-          height: size.height,
-          crop: "fill",
-          format: "jpg",
-          version: heroPhoto.version,
-        })
-      : null;
+  // The share-image renderer reads JPEG/PNG (not WebP), so use the original file.
+  const photo = heroPhoto && /\.(jpe?g|png)$/i.test(heroPhoto.originalUrl) ? heroPhoto.originalUrl : null;
 
   return new ImageResponse(
     <div

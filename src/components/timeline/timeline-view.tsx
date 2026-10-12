@@ -133,7 +133,7 @@ export function TimelineView({
                                 className="photo-zoom group bg-cream relative block aspect-video w-full overflow-hidden rounded-xl"
                                 aria-label={`Play ${v.title ?? "video"}`}
                               >
-                                <VideoPoster video={v} sizes="(min-width: 640px) 420px, 100vw" />
+                                <VideoPoster video={v} />
                                 <span className="absolute inset-0 flex items-center justify-center">
                                   <PlayIcon className="h-12 w-12" />
                                 </span>

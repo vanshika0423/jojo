@@ -1,36 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getUploadSignature, recordPhotoUploads, recordVideoUploads } from "@/app/admin/actions/media";
+import { recordPhotoUploads, recordVideoUploads } from "@/app/admin/actions/media";
 import { notify } from "@/components/admin/toast";
 import { uploadLimits } from "@/lib/env";
 import { formatBytes } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import type { Album, UploadedAsset } from "@/lib/types";
-import { uploadFile, validateFile, type UploadKind, type UploadSignature } from "@/lib/upload-client";
-
-const signatures = new Map<UploadKind, { sig: UploadSignature; at: number }>();
-
-/** Signatures are valid for an hour; refresh well before that. */
-async function getSignature(kind: UploadKind): Promise<UploadSignature> {
-  const cached = signatures.get(kind);
-  if (cached && Date.now() - cached.at < 45 * 60 * 1000) return cached.sig;
-  const res = await getUploadSignature(kind);
-  if (!res.ok) throw new Error(res.error);
-  signatures.set(kind, { sig: res.data, at: Date.now() });
-  return res.data;
-}
-
-/** Upload a single file (used for “replace” and video thumbnails). */
-export async function uploadSingle(
-  file: File,
-  kind: UploadKind,
-  onProgress: (fraction: number) => void = () => {},
-): Promise<UploadedAsset> {
-  const problem = validateFile(file, kind);
-  if (problem) throw new Error(problem);
-  return uploadFile(file, await getSignature(kind), onProgress);
-}
+import type { Album } from "@/lib/types";
+import { uploadPhoto, uploadVideo, validateFile } from "@/lib/upload-client";
 
 type Item = {
   id: string;
@@ -69,11 +46,17 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
       void (async () => {
         try {
           patch(item.id, { status: "uploading", progress: 0, error: undefined });
-          const sig = await getSignature(kind);
-          const asset = await uploadFile(item.file, sig, (p) => patch(item.id, { progress: p }));
-          patch(item.id, { status: "saving", progress: 1 });
-          const record = isVideo ? recordVideoUploads : recordPhotoUploads;
-          const res = await record({ assets: [asset], ...options.current });
+          const onProgress = (p: number) =>
+            patch(item.id, p >= 1 ? { progress: 1, status: "saving" } : { progress: p });
+          const res = isVideo
+            ? await recordVideoUploads({
+                uploads: [await uploadVideo(item.file, onProgress)],
+                ...options.current,
+              })
+            : await recordPhotoUploads({
+                uploads: [await uploadPhoto(item.file, onProgress)],
+                ...options.current,
+              });
           if (!res.ok) throw new Error(res.error);
           patch(item.id, { status: "done" });
         } catch (error) {
@@ -90,7 +73,7 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
         }
       })();
     }
-  }, [isVideo, kind]);
+  }, [isVideo]);
 
   const addFiles = (files: FileList | File[]) => {
     const next: Item[] = Array.from(files).map((file) => {
@@ -148,7 +131,7 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
           ref={inputRef}
           type="file"
           multiple
-          accept={isVideo ? "video/*" : "image/*,.heic,.heif"}
+          accept={isVideo ? "video/*" : "image/*"}
           className="sr-only"
           onChange={(e) => {
             if (e.target.files?.length) addFiles(e.target.files);
@@ -157,8 +140,8 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
         />
         <p className="hint mt-4 max-w-md">
           {isVideo
-            ? `MP4 or MOV, up to ${limit} MB each. Large videos are uploaded in pieces and compressed automatically for smooth playback.`
-            : `JPG, PNG, HEIC or WebP, up to ${limit} MB each. You can select many at once — originals are kept safe and the website shows optimised copies.`}
+            ? `MP4 works best, up to ${limit} MB each. Videos play exactly as uploaded, so shorter clips load faster; a thumbnail is taken from the first second.`
+            : `JPG, PNG or WebP, up to ${limit} MB each — select many at once. Your browser makes small, fast copies for the website and the original is kept safe. (iPhone HEIC photos may need exporting as JPG first.)`}
         </p>
       </div>
 

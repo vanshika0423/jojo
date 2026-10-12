@@ -190,10 +190,7 @@ export default async function HomePage() {
             </h2>
           </Reveal>
           <Reveal>
-            <FeaturedVideo
-              video={featuredVideo}
-              poster={<VideoPoster video={featuredVideo} sizes="(min-width: 1152px) 1152px, 100vw" />}
-            />
+            <FeaturedVideo video={featuredVideo} poster={<VideoPoster video={featuredVideo} />} />
           </Reveal>
           <div className="mt-10 text-center">
             <Link

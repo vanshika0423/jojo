@@ -250,11 +250,12 @@ export function EmptyState({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function SetupNotice({ service }: { service: "Supabase" | "Cloudinary" }) {
+export function SetupNotice({ service }: { service: "Vercel Blob" }) {
   return (
     <div className="text-cocoa mb-6 rounded-2xl border border-[#e3c9a8] bg-[#fbf3e6] px-5 py-4 text-sm">
-      <strong>{service} isn’t connected yet.</strong> Add its keys to your environment variables (see{" "}
-      <code>.env.example</code> and the README’s setup guide), then redeploy.
+      <strong>{service} isn’t connected yet, so uploads won’t work.</strong> Add{" "}
+      <code>BLOB_READ_WRITE_TOKEN</code> to <code>.env.local</code> (or your Vercel project) — see the
+      README’s setup guide — then restart the site.
     </div>
   );
 }

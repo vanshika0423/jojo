@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { AdminLoading, Card, PageTitle, SetupNotice } from "@/components/admin/ui";
 import { Uploader } from "@/components/admin/uploader";
 import { VideoManager } from "@/components/admin/video-manager";
-import { isCloudinaryServerConfigured } from "@/lib/cloudinary/server";
+import { isStorageConfigured } from "@/lib/storage/blob";
 import { getAdminAlbums, getAdminVideos } from "@/lib/data/admin";
 
 export const metadata: Metadata = { title: "Videos" };
@@ -12,10 +12,10 @@ export default function AdminVideosPage() {
   return (
     <>
       <PageTitle title="Videos">
-        Upload videos, set their thumbnails and choose one to feature on the homepage. Cloudinary compresses
-        each video for smooth playback on phones.
+        Upload videos, set their thumbnails and choose one to feature on the homepage. Videos play exactly as
+        uploaded, so shorter clips load fastest.
       </PageTitle>
-      {!isCloudinaryServerConfigured ? <SetupNotice service="Cloudinary" /> : null}
+      {!isStorageConfigured ? <SetupNotice service="Vercel Blob" /> : null}
       <Suspense fallback={<AdminLoading />}>
         <AdminVideosContent />
       </Suspense>

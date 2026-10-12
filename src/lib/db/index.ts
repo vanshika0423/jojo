@@ -40,7 +40,7 @@ export function requireDb(): Sql {
 
 /** Column list shared by every photo query (constant, safe to inline). */
 export const PHOTO_SQL_COLUMNS =
-  "p.id, p.public_id, p.version, p.width, p.height, p.caption, p.alt, p.taken_on, p.tags, p.is_favourite, p.allow_download, p.published, p.position";
+  "p.id, p.original_url, p.variants, p.width, p.height, p.caption, p.alt, p.taken_on, p.tags, p.is_favourite, p.allow_download, p.published, p.position";
 
 export const VIDEO_SQL_COLUMNS =
-  "v.id, v.public_id, v.version, v.width, v.height, v.duration, v.title, v.caption, v.recorded_on, v.poster_public_id, v.poster_version, v.poster_offset, v.is_featured, v.published, v.position";
+  "v.id, v.video_url, v.content_type, v.poster_url, v.width, v.height, v.duration, v.title, v.caption, v.recorded_on, v.is_featured, v.published, v.position";

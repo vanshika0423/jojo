@@ -2,55 +2,58 @@
 
 import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
-import {
-  destroyAsset,
-  isCloudinaryServerConfigured,
-  isOwnPublicId,
-  signUpload,
-  verifyUploadSignature,
-  type UploadKind,
-} from "@/lib/cloudinary/server";
 import { listAdminPhotos, type AdminPhotoQuery } from "@/lib/data/admin";
 import { TAGS } from "@/lib/data/tags";
 import type { Sql } from "@/lib/db";
+import {
+  StorageVerificationError,
+  deleteBlobs,
+  isValidKey,
+  verifyBlob,
+  type MediaKind,
+} from "@/lib/storage/blob";
 import type { ActionResult, AdminPhoto } from "@/lib/types";
 import { UserFacingError, isoDate, optionalText, runAdmin, uuid } from "./run";
 
 // ---------------------------------------------------------------------------
-// Uploading
+// Uploads: verify every file really is in our Blob store, in its own folder
 // ---------------------------------------------------------------------------
 
-export async function getUploadSignature(kind: UploadKind) {
-  await assertAdmin();
-  if (!["photo", "video", "poster"].includes(kind)) throw new Error("Unknown upload type");
-  if (!isCloudinaryServerConfigured) {
-    return {
-      ok: false as const,
-      error: "Cloudinary isn’t configured yet. See the setup guide in README.md.",
-    };
-  }
-  return { ok: true as const, data: signUpload(kind) };
-}
+const blobUrl = z.url({ protocol: /^https$/ }).max(1000);
 
-const uploadedAsset = z.object({
-  public_id: z.string().min(1).max(300),
-  version: z.number().int().positive(),
-  signature: z.string().regex(/^[a-f0-9]{40}$/),
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-  format: z.string().max(20).optional(),
-  bytes: z.number().int().nonnegative().optional(),
-  duration: z.number().nonnegative().optional(),
-  original_filename: z.string().max(300).optional(),
+const photoUpload = z.object({
+  key: z.string().max(200),
+  originalUrl: blobUrl,
+  contentType: z.string().max(100),
+  variants: z
+    .array(z.object({ w: z.number().int().min(16).max(8000), url: blobUrl }))
+    .min(1)
+    .max(8),
+  width: z.number().int().positive().max(100_000),
+  height: z.number().int().positive().max(100_000),
+  originalFilename: z.string().max(300),
 });
 
-/** Reject anything that didn't genuinely come from our Cloudinary account. */
-function assertGenuine(asset: z.infer<typeof uploadedAsset>, kind: UploadKind) {
-  if (
-    !isOwnPublicId(asset.public_id, kind) ||
-    !verifyUploadSignature(asset.public_id, asset.version, asset.signature)
-  ) {
-    throw new UserFacingError("That upload couldn’t be verified. Please try uploading it again.");
+const videoUpload = z.object({
+  key: z.string().max(200),
+  videoUrl: blobUrl,
+  contentType: z.string().max(100),
+  posterUrl: blobUrl.nullable(),
+  width: z.number().int().positive().max(100_000).nullable(),
+  height: z.number().int().positive().max(100_000).nullable(),
+  duration: z.number().nonnegative().max(1_000_000).nullable(),
+  originalFilename: z.string().max(300),
+});
+
+/** Checks each URL; returns their sizes in the same order (nulls skipped). */
+async function verifyAll(key: string, kind: MediaKind, urls: Array<string | null>) {
+  if (!isValidKey(key, kind))
+    throw new UserFacingError("That upload couldn’t be verified. Please try again.");
+  try {
+    return await Promise.all(urls.filter((u): u is string => Boolean(u)).map((u) => verifyBlob(u, key)));
+  } catch (error) {
+    if (error instanceof StorageVerificationError) throw new UserFacingError(error.message);
+    throw error;
   }
 }
 
@@ -60,7 +63,7 @@ async function topPosition(sql: Sql, table: "photos" | "videos") {
 }
 
 const recordPhotosSchema = z.object({
-  assets: z.array(uploadedAsset).min(1).max(50),
+  uploads: z.array(photoUpload).min(1).max(50),
   publish: z.boolean(),
   albumIds: z.array(uuid).max(50),
 });
@@ -71,28 +74,29 @@ export async function recordPhotoUploads(input: z.input<typeof recordPhotosSchem
     recordPhotosSchema,
     input,
     [TAGS.photos, TAGS.albums],
-    async ({ assets, publish, albumIds }, sql) => {
-      assets.forEach((a) => assertGenuine(a, "photo"));
+    async ({ uploads, publish, albumIds }, sql) => {
       const top = await topPosition(sql, "photos");
-      const rows = assets.map((a, i) => ({
-        public_id: a.public_id,
-        version: a.version,
-        width: a.width ?? 1,
-        height: a.height ?? 1,
-        format: a.format ?? null,
-        bytes: a.bytes ?? null,
-        original_filename: a.original_filename ?? null,
-        published: publish,
-        position: top - (assets.length - i),
-      }));
-      // Re-recording the same upload (e.g. a retry) updates it instead of duplicating.
+      const rows = [];
+      for (const [i, u] of uploads.entries()) {
+        const [original] = await verifyAll(u.key, "photos", [u.originalUrl, ...u.variants.map((v) => v.url)]);
+        rows.push({
+          storage_key: u.key,
+          original_url: u.originalUrl,
+          variants: sql.json(u.variants),
+          content_type: u.contentType,
+          width: u.width,
+          height: u.height,
+          bytes: original.size,
+          original_filename: u.originalFilename || null,
+          published: publish,
+          position: top - (uploads.length - i),
+        });
+      }
       const inserted = await sql<{ id: string }[]>`
         insert into public.photos ${sql(rows)}
-        on conflict (public_id) do update set
-          version = excluded.version, width = excluded.width, height = excluded.height,
-          format = excluded.format, bytes = excluded.bytes, original_filename = excluded.original_filename
+        on conflict (storage_key) do nothing
         returning id`;
-      if (albumIds.length) {
+      if (albumIds.length && inserted.length) {
         const links = inserted.flatMap((p) => albumIds.map((album_id) => ({ photo_id: p.id, album_id })));
         await sql`insert into public.photo_albums ${sql(links)} on conflict do nothing`;
       }
@@ -147,15 +151,22 @@ const updatePhotoSchema = z.object({
 export async function updatePhoto(input: z.input<typeof updatePhotoSchema>) {
   return runAdmin(updatePhotoSchema, input, [TAGS.photos, TAGS.albums, TAGS.settings], async (p, sql) => {
     await sql`
-        update public.photos set
-          caption = ${p.caption}, alt = ${p.alt}, taken_on = ${p.takenOn}, tags = ${sql.array(p.tags)}::text[],
-          is_favourite = ${p.isFavourite}, allow_download = ${p.allowDownload}, published = ${p.published}
-        where id = ${p.id}`;
+      update public.photos set
+        caption = ${p.caption}, alt = ${p.alt}, taken_on = ${p.takenOn}, tags = ${sql.array(p.tags)}::text[],
+        is_favourite = ${p.isFavourite}, allow_download = ${p.allowDownload}, published = ${p.published}
+      where id = ${p.id}`;
     await sql`delete from public.photo_albums where photo_id = ${p.id}`;
     if (p.albumIds.length) {
       await sql`insert into public.photo_albums ${sql(p.albumIds.map((album_id) => ({ photo_id: p.id, album_id })))}`;
     }
   });
+}
+
+type PhotoFilesRow = { original_url: string; variants: Array<{ url: string }> | null };
+
+/** Every file belonging to a photo row, for deletion. */
+function photoFiles(row: PhotoFilesRow) {
+  return [row.original_url, ...(row.variants ?? []).map((v) => v.url)];
 }
 
 const bulkSchema = z.object({
@@ -204,12 +215,10 @@ export async function bulkUpdatePhotos(input: z.input<typeof bulkSchema>) {
         }
         return;
       }
-      // delete
-      const removed = await sql<{ public_id: string }[]>`
-        delete from public.photos where id in ${sql(ids)} returning public_id`;
-      afterCommit(async () => {
-        await Promise.all(removed.map((r) => destroyAsset(r.public_id, "image")));
-      });
+      // delete: remove rows now, files once the change is committed
+      const removed = await sql<PhotoFilesRow[]>`
+        delete from public.photos where id in ${sql(ids)} returning original_url, variants`;
+      afterCommit(() => deleteBlobs(removed.flatMap(photoFiles)));
     },
   );
 }
@@ -245,7 +254,7 @@ export async function movePhoto(input: z.input<typeof moveSchema>) {
   });
 }
 
-const replaceSchema = z.object({ id: uuid, asset: uploadedAsset });
+const replaceSchema = z.object({ id: uuid, upload: photoUpload });
 
 /** Swap the image file but keep caption, albums, order and links. */
 export async function replacePhoto(input: z.input<typeof replaceSchema>) {
@@ -253,17 +262,19 @@ export async function replacePhoto(input: z.input<typeof replaceSchema>) {
     replaceSchema,
     input,
     [TAGS.photos, TAGS.settings, TAGS.story, TAGS.littleThings, TAGS.timeline, TAGS.letters],
-    async ({ id, asset }, sql, afterCommit) => {
-      assertGenuine(asset, "photo");
-      const [old] = await sql<{ public_id: string }[]>`select public_id from public.photos where id = ${id}`;
+    async ({ id, upload: u }, sql, afterCommit) => {
+      const [original] = await verifyAll(u.key, "photos", [u.originalUrl, ...u.variants.map((v) => v.url)]);
+      const [old] = await sql<
+        PhotoFilesRow[]
+      >`select original_url, variants from public.photos where id = ${id}`;
       if (!old) throw new UserFacingError("That photo no longer exists.");
       await sql`
         update public.photos set
-          public_id = ${asset.public_id}, version = ${asset.version},
-          width = ${asset.width ?? 1}, height = ${asset.height ?? 1}, format = ${asset.format ?? null},
-          bytes = ${asset.bytes ?? null}, original_filename = ${asset.original_filename ?? null}
+          storage_key = ${u.key}, original_url = ${u.originalUrl}, variants = ${sql.json(u.variants)},
+          content_type = ${u.contentType}, width = ${u.width}, height = ${u.height}, bytes = ${original.size},
+          original_filename = ${u.originalFilename || null}
         where id = ${id}`;
-      if (old.public_id !== asset.public_id) afterCommit(() => destroyAsset(old.public_id, "image"));
+      afterCommit(() => deleteBlobs(photoFiles(old)));
     },
   );
 }
@@ -273,35 +284,41 @@ export async function replacePhoto(input: z.input<typeof replaceSchema>) {
 // ---------------------------------------------------------------------------
 
 const recordVideoSchema = z.object({
-  assets: z.array(uploadedAsset).min(1).max(20),
+  uploads: z.array(videoUpload).min(1).max(20),
   publish: z.boolean(),
   albumIds: z.array(uuid).max(50),
 });
 
 export async function recordVideoUploads(input: z.input<typeof recordVideoSchema>) {
-  return runAdmin(recordVideoSchema, input, [TAGS.videos], async ({ assets, publish, albumIds }, sql) => {
-    assets.forEach((a) => assertGenuine(a, "video"));
+  return runAdmin(recordVideoSchema, input, [TAGS.videos], async ({ uploads, publish, albumIds }, sql) => {
     const top = await topPosition(sql, "videos");
-    const rows = assets.map((a, i) => ({
-      public_id: a.public_id,
-      version: a.version,
-      width: a.width ?? null,
-      height: a.height ?? null,
-      duration: a.duration ?? null,
-      format: a.format ?? null,
-      bytes: a.bytes ?? null,
-      original_filename: a.original_filename ?? null,
-      title: a.original_filename?.replace(/[-_]+/g, " ").slice(0, 200) ?? null,
-      published: publish,
-      position: top - (assets.length - i),
-    }));
+    const rows = [];
+    for (const [i, u] of uploads.entries()) {
+      const [video] = await verifyAll(u.key, "videos", [u.videoUrl, u.posterUrl]);
+      rows.push({
+        storage_key: u.key,
+        video_url: u.videoUrl,
+        content_type: u.contentType,
+        poster_url: u.posterUrl,
+        width: u.width,
+        height: u.height,
+        duration: u.duration,
+        bytes: video.size,
+        original_filename: u.originalFilename || null,
+        title:
+          u.originalFilename
+            .replace(/\.[^.]+$/, "")
+            .replace(/[-_]+/g, " ")
+            .slice(0, 200) || null,
+        published: publish,
+        position: top - (uploads.length - i),
+      });
+    }
     const inserted = await sql<{ id: string }[]>`
-        insert into public.videos ${sql(rows)}
-        on conflict (public_id) do update set
-          version = excluded.version, width = excluded.width, height = excluded.height,
-          duration = excluded.duration, format = excluded.format, bytes = excluded.bytes
-        returning id`;
-    if (albumIds.length) {
+      insert into public.videos ${sql(rows)}
+      on conflict (storage_key) do nothing
+      returning id`;
+    if (albumIds.length && inserted.length) {
       const links = inserted.flatMap((v) => albumIds.map((album_id) => ({ video_id: v.id, album_id })));
       await sql`insert into public.video_albums ${sql(links)} on conflict do nothing`;
     }
@@ -316,7 +333,6 @@ const updateVideoSchema = z.object({
   recordedOn: isoDate.nullable(),
   published: z.boolean(),
   isFeatured: z.boolean(),
-  posterOffset: z.number().min(0).max(36_000).nullable(),
   albumIds: z.array(uuid).max(50),
 });
 
@@ -326,7 +342,7 @@ export async function updateVideo(input: z.input<typeof updateVideoSchema>) {
     await sql`
       update public.videos set
         title = ${v.title}, caption = ${v.caption}, recorded_on = ${v.recordedOn}, published = ${v.published},
-        is_featured = ${v.isFeatured}, poster_offset = ${v.posterOffset}
+        is_featured = ${v.isFeatured}
       where id = ${v.id}`;
     await sql`delete from public.video_albums where video_id = ${v.id}`;
     if (v.albumIds.length) {
@@ -335,59 +351,54 @@ export async function updateVideo(input: z.input<typeof updateVideoSchema>) {
   });
 }
 
-const posterSchema = z.object({ id: uuid, asset: uploadedAsset.nullable() });
+const posterSchema = z.object({ id: uuid, key: z.string().max(200), posterUrl: blobUrl });
 
-/** Set a custom thumbnail image for a video, or clear it (null). */
+/** Use an uploaded image as a video's thumbnail. */
 export async function setVideoPoster(input: z.input<typeof posterSchema>) {
   return runAdmin(
     posterSchema,
     input,
     [TAGS.videos, TAGS.timeline],
-    async ({ id, asset }, sql, afterCommit) => {
-      if (asset) assertGenuine(asset, "poster");
-      const [old] = await sql<{ poster_public_id: string | null }[]>`
-      select poster_public_id from public.videos where id = ${id}`;
+    async ({ id, key, posterUrl }, sql, afterCommit) => {
+      await verifyAll(key, "posters", [posterUrl]);
+      const [old] = await sql<
+        { poster_url: string | null }[]
+      >`select poster_url from public.videos where id = ${id}`;
       if (!old) throw new UserFacingError("That video no longer exists.");
-      await sql`
-      update public.videos set poster_public_id = ${asset?.public_id ?? null}, poster_version = ${asset?.version ?? null}
-      where id = ${id}`;
-      const previous = old.poster_public_id;
-      if (previous && previous !== asset?.public_id) afterCommit(() => destroyAsset(previous, "image"));
+      await sql`update public.videos set poster_url = ${posterUrl} where id = ${id}`;
+      if (old.poster_url && old.poster_url !== posterUrl) afterCommit(() => deleteBlobs([old.poster_url]));
     },
   );
 }
 
-const replaceVideoSchema = z.object({ id: uuid, asset: uploadedAsset });
+const replaceVideoSchema = z.object({ id: uuid, upload: videoUpload });
 
 export async function replaceVideo(input: z.input<typeof replaceVideoSchema>) {
   return runAdmin(
     replaceVideoSchema,
     input,
     [TAGS.videos, TAGS.timeline],
-    async ({ id, asset }, sql, afterCommit) => {
-      assertGenuine(asset, "video");
-      const [old] = await sql<{ public_id: string }[]>`select public_id from public.videos where id = ${id}`;
+    async ({ id, upload: u }, sql, afterCommit) => {
+      const [video] = await verifyAll(u.key, "videos", [u.videoUrl, u.posterUrl]);
+      const [old] = await sql<{ video_url: string; poster_url: string | null }[]>`
+        select video_url, poster_url from public.videos where id = ${id}`;
       if (!old) throw new UserFacingError("That video no longer exists.");
       await sql`
         update public.videos set
-          public_id = ${asset.public_id}, version = ${asset.version}, width = ${asset.width ?? null},
-          height = ${asset.height ?? null}, duration = ${asset.duration ?? null}, format = ${asset.format ?? null},
-          bytes = ${asset.bytes ?? null}, original_filename = ${asset.original_filename ?? null}
+          storage_key = ${u.key}, video_url = ${u.videoUrl}, content_type = ${u.contentType},
+          poster_url = ${u.posterUrl ?? old.poster_url}, width = ${u.width}, height = ${u.height},
+          duration = ${u.duration}, bytes = ${video.size}, original_filename = ${u.originalFilename || null}
         where id = ${id}`;
-      if (old.public_id !== asset.public_id) afterCommit(() => destroyAsset(old.public_id, "video"));
+      afterCommit(() => deleteBlobs([old.video_url, u.posterUrl ? old.poster_url : null]));
     },
   );
 }
 
 export async function deleteVideo(id: string) {
   return runAdmin(uuid, id, [TAGS.videos, TAGS.timeline], async (videoId, sql, afterCommit) => {
-    const [row] = await sql<{ public_id: string; poster_public_id: string | null }[]>`
-      delete from public.videos where id = ${videoId} returning public_id, poster_public_id`;
-    if (!row) return;
-    afterCommit(async () => {
-      await destroyAsset(row.public_id, "video");
-      if (row.poster_public_id) await destroyAsset(row.poster_public_id, "image");
-    });
+    const [row] = await sql<{ video_url: string; poster_url: string | null }[]>`
+      delete from public.videos where id = ${videoId} returning video_url, poster_url`;
+    if (row) afterCommit(() => deleteBlobs([row.video_url, row.poster_url]));
   });
 }
 
@@ -395,8 +406,7 @@ const moveVideoSchema = z.object({ id: uuid, direction: z.enum(["up", "down"]) }
 
 export async function moveVideo(input: z.input<typeof moveVideoSchema>) {
   return runAdmin(moveVideoSchema, input, [TAGS.videos], async ({ id, direction }, sql) => {
-    const rows = await sql<{ id: string }[]>`
-      select id from public.videos order by position, created_at desc`;
+    const rows = await sql<{ id: string }[]>`select id from public.videos order by position, created_at desc`;
     const i = rows.findIndex((r) => r.id === id);
     const j = direction === "up" ? i - 1 : i + 1;
     if (i < 0 || j < 0 || j >= rows.length) return;

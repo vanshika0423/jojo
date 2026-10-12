@@ -12,11 +12,19 @@ import type {
 /* eslint-disable @typescript-eslint/no-explicit-any -- rows come straight from SQL */
 type Row = Record<string, any>;
 
+function toVariants(value: unknown) {
+  const list = Array.isArray(value) ? value : [];
+  return list
+    .filter((v): v is { w: number; url: string } => typeof v?.url === "string" && Number(v?.w) > 0)
+    .map((v) => ({ w: Number(v.w), url: v.url }))
+    .sort((a, b) => a.w - b.w);
+}
+
 export function toPhoto(row: Row): Photo {
   return {
     id: row.id,
-    publicId: row.public_id,
-    version: Number(row.version),
+    originalUrl: row.original_url,
+    variants: toVariants(row.variants),
     width: row.width,
     height: row.height,
     caption: row.caption ?? null,
@@ -49,17 +57,15 @@ export function toAlbum(row: Row): Album {
 export function toVideo(row: Row): Video {
   return {
     id: row.id,
-    publicId: row.public_id,
-    version: Number(row.version),
+    videoUrl: row.video_url,
+    contentType: row.content_type ?? null,
+    posterUrl: row.poster_url ?? null,
     width: row.width ?? null,
     height: row.height ?? null,
     duration: row.duration != null ? Number(row.duration) : null,
     title: row.title ?? null,
     caption: row.caption ?? null,
     recordedOn: row.recorded_on ?? null,
-    posterPublicId: row.poster_public_id ?? null,
-    posterVersion: row.poster_version != null ? Number(row.poster_version) : null,
-    posterOffset: row.poster_offset != null ? Number(row.poster_offset) : null,
     isFeatured: Boolean(row.is_featured),
     published: Boolean(row.published),
     position: Number(row.position ?? 0),

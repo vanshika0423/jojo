@@ -5,9 +5,8 @@ import { deleteVideo, moveVideo, replaceVideo, setVideoPoster, updateVideo } fro
 import { Thumb } from "@/components/admin/thumb";
 import { notify, report } from "@/components/admin/toast";
 import { ConfirmButton, Drawer, EmptyState, Field, StatusPill, Toggle } from "@/components/admin/ui";
-import { uploadSingle } from "@/components/admin/uploader";
 import { VideoPlayer } from "@/components/video/video-player";
-import { isCloudinaryConfigured } from "@/lib/env";
+import { uploadPoster, uploadVideo } from "@/lib/upload-client";
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import type { Album, Video } from "@/lib/types";
@@ -91,7 +90,6 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
     recordedOn: video.recordedOn ?? "",
     published: video.published,
     isFeatured: video.isFeatured,
-    posterOffset: video.posterOffset != null ? String(video.posterOffset) : "",
     albumIds: video.albumIds,
   });
   const [pending, startTransition] = useTransition();
@@ -100,7 +98,6 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
 
   const save = () =>
     startTransition(async () => {
-      const offset = form.posterOffset.trim() === "" ? null : Number(form.posterOffset);
       const res = await updateVideo({
         id: video.id,
         title: form.title,
@@ -108,7 +105,6 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
         recordedOn: form.recordedOn || null,
         published: form.published,
         isFeatured: form.isFeatured,
-        posterOffset: offset != null && Number.isFinite(offset) ? offset : null,
         albumIds: form.albumIds,
       });
       if (report(res, "Video saved")) onDone();
@@ -117,11 +113,14 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
   const upload = async (file: File, kind: "poster" | "video") => {
     try {
       setProgress("0%");
-      const asset = await uploadSingle(file, kind, (p) => setProgress(`${Math.round(p * 100)}%`));
-      const res =
-        kind === "poster"
-          ? await setVideoPoster({ id: video.id, asset })
-          : await replaceVideo({ id: video.id, asset });
+      const onProgress = (p: number) => setProgress(`${Math.round(p * 100)}%`);
+      let res;
+      if (kind === "poster") {
+        const poster = await uploadPoster(file, onProgress);
+        res = await setVideoPoster({ id: video.id, key: poster.key, posterUrl: poster.url });
+      } else {
+        res = await replaceVideo({ id: video.id, upload: await uploadVideo(file, onProgress) });
+      }
       report(res, kind === "poster" ? "Thumbnail updated" : "Video replaced");
     } catch (e) {
       notify(e instanceof Error ? e.message : "Upload failed", "error");
@@ -133,7 +132,7 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
   return (
     <div className="grid gap-6 md:grid-cols-[1.1fr_1fr]">
       <div className="space-y-4">
-        {isCloudinaryConfigured ? <VideoPlayer video={video} className="w-full rounded-xl bg-black" /> : null}
+        <VideoPlayer video={video} className="w-full rounded-xl bg-black" />
         <div className="flex flex-wrap gap-2">
           <label className="btn btn-ghost cursor-pointer !px-4 !py-2">
             Upload thumbnail image
@@ -149,20 +148,6 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
               }}
             />
           </label>
-          {video.posterPublicId ? (
-            <button
-              type="button"
-              className="btn btn-ghost !px-4 !py-2"
-              onClick={() =>
-                startTransition(
-                  async () =>
-                    void report(await setVideoPoster({ id: video.id, asset: null }), "Thumbnail removed"),
-                )
-              }
-            >
-              Use a frame instead
-            </button>
-          ) : null}
           <label className="btn btn-ghost cursor-pointer !px-4 !py-2">
             Replace video
             <input
@@ -182,24 +167,6 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
           <p className="text-cocoa/70 text-sm" role="status">
             Uploading… {progress}
           </p>
-        ) : null}
-        {!video.posterPublicId ? (
-          <Field
-            label="Thumbnail frame (seconds into the video)"
-            hint="Leave empty to let Cloudinary pick a good frame automatically."
-          >
-            {(id) => (
-              <input
-                id={id}
-                type="number"
-                min={0}
-                step={0.5}
-                className="field"
-                value={form.posterOffset}
-                onChange={(e) => set("posterOffset", e.target.value)}
-              />
-            )}
-          </Field>
         ) : null}
       </div>
       <div className="space-y-5">

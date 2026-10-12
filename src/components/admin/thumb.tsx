@@ -1,5 +1,4 @@
-import { imageUrl, videoPosterUrl } from "@/lib/cloudinary/urls";
-import { isCloudinaryConfigured } from "@/lib/env";
+import { pickVariant } from "@/lib/media";
 import { cn } from "@/lib/cn";
 import type { Photo, Video } from "@/lib/types";
 
@@ -10,22 +9,16 @@ export function Thumb({
   size = 240,
   className,
 }: {
-  photo?: Pick<Photo, "publicId" | "version" | "caption"> | null;
+  photo?: Pick<Photo, "variants" | "caption"> | null;
   video?: Video | null;
   size?: number;
   className?: string;
 }) {
-  const src = !isCloudinaryConfigured
-    ? null
-    : photo?.publicId
-      ? imageUrl(photo.publicId, { width: size, height: size, crop: "fill", version: photo.version })
-      : video
-        ? videoPosterUrl(video, size)
-        : null;
+  const src = photo ? (pickVariant(photo.variants, size)?.url ?? null) : (video?.posterUrl ?? null);
   return (
     <span className={cn("bg-cream relative block overflow-hidden", className)}>
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- tiny Cloudinary thumbnail
+        // eslint-disable-next-line @next/next/no-img-element -- smallest web-sized copy
         <img
           src={src}
           alt={photo?.caption ?? ""}

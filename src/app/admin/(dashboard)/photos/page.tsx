@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { PhotoManager } from "@/components/admin/photo-manager";
 import { AdminLoading, Card, PageTitle, SetupNotice } from "@/components/admin/ui";
 import { Uploader } from "@/components/admin/uploader";
-import { isCloudinaryServerConfigured } from "@/lib/cloudinary/server";
+import { isStorageConfigured } from "@/lib/storage/blob";
 import { getAdminAlbums, getAdminSettings, listAdminPhotos } from "@/lib/data/admin";
 
 export const metadata: Metadata = { title: "Photos" };
@@ -15,7 +15,7 @@ export default function AdminPhotosPage() {
         Upload, caption, organise and publish photographs. Click a photo to edit it; tick several to change
         them together.
       </PageTitle>
-      {!isCloudinaryServerConfigured ? <SetupNotice service="Cloudinary" /> : null}
+      {!isStorageConfigured ? <SetupNotice service="Vercel Blob" /> : null}
       <Suspense fallback={<AdminLoading />}>
         <AdminPhotosContent />
       </Suspense>

@@ -18,20 +18,16 @@ export function realValue(value: string | undefined) {
   return /^your[-_]|your-project-ref|x{6,}|^0+$/i.test(v) ? "" : v;
 }
 
-export const cloudinaryCloudName = realValue(process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
-
 /** Supabase is optional: when its keys are set, sign-in uses Supabase Auth. */
 export const isSupabaseAuth = Boolean(supabaseUrl && supabasePublishableKey);
-
-export const isCloudinaryConfigured = Boolean(cloudinaryCloudName);
 
 function readMb(value: string | undefined, fallback: number) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-/** Upload limits shown in the dashboard. Match them to your Cloudinary plan. */
+/** Upload limits enforced in the dashboard and by the upload route. */
 export const uploadLimits = {
-  imageMb: readMb(process.env.NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB, 10),
-  videoMb: readMb(process.env.NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB, 100),
+  imageMb: readMb(process.env.NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB, 30),
+  videoMb: readMb(process.env.NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB, 500),
 };

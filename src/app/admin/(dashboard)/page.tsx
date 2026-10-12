@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { AdminLoading, Card, PageTitle, SetupNotice } from "@/components/admin/ui";
-import { isCloudinaryServerConfigured } from "@/lib/cloudinary/server";
+import { isStorageConfigured } from "@/lib/storage/blob";
 import { getOverview } from "@/lib/data/admin";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -14,7 +14,7 @@ export default function AdminOverviewPage() {
         Everything on the website can be changed from here. Nothing is published until you choose to publish
         it.
       </PageTitle>
-      {!isCloudinaryServerConfigured ? <SetupNotice service="Cloudinary" /> : null}
+      {!isStorageConfigured ? <SetupNotice service="Vercel Blob" /> : null}
       <Suspense fallback={<AdminLoading />}>
         <AdminOverviewContent />
       </Suspense>
