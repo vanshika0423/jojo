@@ -16,13 +16,7 @@ export function VideoPoster({
   eager?: boolean;
 }) {
   if (video.placeholder || !video.publicId || !isCloudinaryConfigured) {
-    return (
-      <PhotoPlaceholder
-        className={cn("absolute inset-0", className)}
-        label="A video of Jojo will play here"
-        tone={2}
-      />
-    );
+    return <PhotoPlaceholder className={cn("absolute inset-0", className)} label={null} tone={2} />;
   }
   const widths = [480, 800, 1280, 1920];
   return (

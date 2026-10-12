@@ -11,7 +11,10 @@ export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const isLogin = request.nextUrl.pathname === "/admin/login";
-  if (!url || !key) return NextResponse.next();
+  if (!url || !key) {
+    // Not set up yet: the sign-in page explains what to configure.
+    return isLogin ? NextResponse.next() : NextResponse.redirect(new URL("/admin/login", request.url));
+  }
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {

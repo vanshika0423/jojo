@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getServerClient } from "@/lib/supabase/server";
 
@@ -11,6 +12,8 @@ export type AdminUser = { id: string; email: string | null };
  * and admin membership is checked in the database — never trust the client.
  */
 export const getAdmin = cache(async function getAdmin(): Promise<AdminUser | null> {
+  // Always a request-time decision, never part of a prerendered shell.
+  await connection();
   if (!isSupabaseConfigured) return null;
   const supabase = await getServerClient();
   const { data, error } = await supabase.auth.getClaims();
