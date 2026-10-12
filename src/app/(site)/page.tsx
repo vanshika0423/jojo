@@ -19,6 +19,7 @@ import {
 import { placeholderPhotos, placeholderVideos } from "@/lib/data/placeholders";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { InfinityText } from "@/components/site/infinity-text";
 
 export default async function HomePage() {
   const [settings, featured, recent, video, timeline, littleThings] = await Promise.all([
@@ -243,13 +244,13 @@ export default async function HomePage() {
           ∞
         </span>
         <Reveal className="relative">
-          <h2 className="text-5xl text-cocoa sm:text-7xl">{home.finalHeading}</h2>
+          <h2 className="text-5xl text-cocoa sm:text-7xl"><InfinityText text={home.finalHeading} /></h2>
           {home.finalBody ? (
             <p className="mx-auto mt-6 max-w-xl font-serif text-xl italic text-cocoa/75 sm:text-2xl">
               {home.finalBody}
             </p>
           ) : null}
-          <p className="mt-8 text-xs uppercase tracking-[0.3em] text-taupe-dark">11 March 2017 — ♾️</p>
+          <p className="mt-8 text-xs uppercase tracking-[0.3em] text-taupe-dark">11 March 2017 — <InfinityText text="♾️" /></p>
           <div className="mt-12">
             <Link href="/letters" className="btn btn-primary">
               Write a letter to Jojo

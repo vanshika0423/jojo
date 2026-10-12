@@ -5,6 +5,7 @@ import { Reveal } from "@/components/motion/reveal";
 import { PageHeader } from "@/components/site/section-heading";
 import { getPublicLetters, getSettings } from "@/lib/data/public";
 import { formatDate, paragraphs } from "@/lib/format";
+import { InfinityText } from "@/components/site/infinity-text";
 
 export const metadata: Metadata = {
   title: "Letters to Jojo",
@@ -34,7 +35,7 @@ export default async function LettersPage() {
                   <header className="mb-6 flex items-baseline justify-between gap-4">
                     <p className="eyebrow">{formatDate(letter.letterDate)}</p>
                     <span aria-hidden className="font-serif text-2xl text-taupe">
-                      ♾️
+                      <InfinityText text="♾️" />
                     </span>
                   </header>
                   {letter.photo ? (

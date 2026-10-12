@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { submitLetter, type SubmitLetterState } from "@/app/(site)/letters/actions";
+import { InfinityText } from "@/components/site/infinity-text";
 
 const initialState: SubmitLetterState = { status: "idle" };
 
@@ -15,7 +16,7 @@ export function LetterForm() {
   if (state.status === "success") {
     return (
       <div role="status" className="paper rounded-3xl px-8 py-12 text-center shadow-sm">
-        <p className="font-serif text-3xl text-cocoa">Thank you ♾️</p>
+        <p className="font-serif text-3xl text-cocoa">Thank you <InfinityText text="♾️" /></p>
         <p className="mt-3 text-cocoa/75">{state.message}</p>
       </div>
     );

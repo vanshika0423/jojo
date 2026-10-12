@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import { PhotoFrame } from "@/components/media/photo-frame";
@@ -22,6 +22,20 @@ type GalleryProps = {
 
 const FAVOURITES = "our-favourites";
 
+async function requestPage(album: string | null, q: string, offset: number): Promise<PageState> {
+  try {
+    const params = new URLSearchParams({ offset: String(offset) });
+    if (album === FAVOURITES) params.set("favourites", "1");
+    else if (album) params.set("album", album);
+    if (q.trim()) params.set("q", q.trim());
+    const res = await fetch(`/api/photos?${params}`);
+    if (!res.ok) throw new Error(String(res.status));
+    return (await res.json()) as PageState;
+  } catch {
+    return { photos: [], hasMore: false, total: null, error: true };
+  }
+}
+
 function keyOf(album: string | null, q: string) {
   return `${album ?? "all"}|${q.trim().toLowerCase()}`;
 }
@@ -35,100 +49,89 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
 
   const [query, setQuery] = useState(urlQuery);
   const [pages, setPages] = useState<Record<string, PageState>>(() => ({ [keyOf(null, "")]: initial }));
-  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const columns = useColumns();
   const sentinel = useRef<HTMLDivElement>(null);
-  const inFlight = useRef<string | null>(null);
 
   const key = keyOf(album, urlQuery);
   const current = placeholderMode ? initial : pages[key];
-  const photos = useMemo(() => current?.photos ?? [], [current]);
+  const photos = current?.photos ?? [];
+  const loading = (!current && !placeholderMode) || loadingMore;
 
-  const updateUrl = useCallback(
-    (next: { album?: string | null; q?: string }) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (next.album !== undefined) {
-        if (next.album) params.set("album", next.album);
-        else params.delete("album");
-      }
-      if (next.q !== undefined) {
-        if (next.q.trim()) params.set("q", next.q.trim());
-        else params.delete("q");
-      }
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
+  const updateUrl = (next: { album?: string | null; q?: string }) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next.album !== undefined) {
+      if (next.album) params.set("album", next.album);
+      else params.delete("album");
+    }
+    if (next.q !== undefined) {
+      if (next.q.trim()) params.set("q", next.q.trim());
+      else params.delete("q");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
-  const fetchPage = useCallback(
-    async (offset: number) => {
-      if (placeholderMode) return;
-      const requestKey = `${key}@${offset}`;
-      if (inFlight.current === requestKey) return;
-      inFlight.current = requestKey;
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ offset: String(offset) });
-        if (album === FAVOURITES) params.set("favourites", "1");
-        else if (album) params.set("album", album);
-        if (urlQuery.trim()) params.set("q", urlQuery.trim());
-        const res = await fetch(`/api/photos?${params}`);
-        if (!res.ok) throw new Error(String(res.status));
-        const page = (await res.json()) as PageState;
+  // First page for a new album or search.
+  useEffect(() => {
+    if (current || placeholderMode) return;
+    let cancelled = false;
+    void requestPage(album, urlQuery, 0).then((page) => {
+      if (!cancelled) setPages((prev) => ({ ...prev, [key]: page }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [current, key, album, urlQuery, placeholderMode]);
+
+  const loadMore = () => {
+    if (!current?.hasMore || loadingMore || placeholderMode) return;
+    setLoadingMore(true);
+    const pageKey = key;
+    void requestPage(album, urlQuery, current.photos.length)
+      .then((page) =>
         setPages((prev) => {
-          const existing = offset > 0 ? (prev[key]?.photos ?? []) : [];
+          const existing = prev[pageKey]?.photos ?? [];
           const seen = new Set(existing.map((p) => p.id));
           return {
             ...prev,
-            [key]: {
+            [pageKey]: {
               photos: [...existing, ...page.photos.filter((p) => !seen.has(p.id))],
               hasMore: page.hasMore,
-              total: offset > 0 ? (prev[key]?.total ?? page.total) : page.total,
+              total: prev[pageKey]?.total ?? page.total,
+              error: page.error,
             },
           };
-        });
-      } catch {
-        setPages((prev) => ({
-          ...prev,
-          [key]: { photos: prev[key]?.photos ?? [], hasMore: false, total: prev[key]?.total ?? null, error: true },
-        }));
-      } finally {
-        inFlight.current = null;
-        setLoading(false);
-      }
-    },
-    [album, key, placeholderMode, urlQuery],
-  );
+        }),
+      )
+      .finally(() => setLoadingMore(false));
+  };
 
-  // First page for a new filter or search.
+  // Infinite scroll: the observer always calls the latest loadMore.
+  const loadMoreRef = useRef(loadMore);
   useEffect(() => {
-    if (!current && !placeholderMode) void fetchPage(0);
-  }, [current, fetchPage, placeholderMode]);
-
-  const loadMore = useCallback(() => {
-    if (current?.hasMore && !loading) void fetchPage(current.photos.length);
-  }, [current, fetchPage, loading]);
-
-  // Infinite scroll.
+    loadMoreRef.current = loadMore;
+  });
   useEffect(() => {
     const el = sentinel.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      (entries) => entries.some((e) => e.isIntersecting) && loadMore(),
+      (entries) => entries.some((e) => e.isIntersecting) && loadMoreRef.current(),
       { rootMargin: "1200px 0px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [loadMore]);
+  }, []);
+  const onNearEnd = useCallback(() => loadMoreRef.current(), []);
 
   // Debounced search → URL.
-  useEffect(() => {
-    if (query === urlQuery) return;
-    const t = setTimeout(() => updateUrl({ q: query }), 350);
-    return () => clearTimeout(t);
-  }, [query, urlQuery, updateUrl]);
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const onSearch = (value: string) => {
+    setQuery(value);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => updateUrl({ q: value }), 350);
+  };
 
   const chips = [
     { slug: null, name: "All Memories" },
@@ -137,7 +140,6 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
   ];
 
   const cols = distribute(photos, columns);
-  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
 
   return (
     <div>
@@ -167,7 +169,7 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
             <input
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => onSearch(e.target.value)}
               placeholder="Search captions or tags…"
               className="w-full rounded-full border border-taupe/50 bg-white/80 px-5 py-2.5 text-sm placeholder:text-taupe-dark/80 focus:border-sage-dark focus:outline-none"
               disabled={placeholderMode}
@@ -260,9 +262,9 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
         photos={photos}
         index={lightboxIndex}
         onIndexChange={setLightboxIndex}
-        onClose={closeLightbox}
+        onClose={() => setLightboxIndex(null)}
         allowDownloads={allowDownloads}
-        onNearEnd={loadMore}
+        onNearEnd={onNearEnd}
       />
     </div>
   );

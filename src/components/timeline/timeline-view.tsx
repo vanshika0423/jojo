@@ -11,6 +11,7 @@ import { VideoModal } from "@/components/video/video-modal";
 import { VideoPoster } from "@/components/video/video-poster";
 import { formatDate, paragraphs, yearOf } from "@/lib/format";
 import type { Photo, TimelineEvent, Video } from "@/lib/types";
+import { InfinityText } from "@/components/site/infinity-text";
 
 export function TimelineView({ events, allowDownloads }: { events: TimelineEvent[]; allowDownloads: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -42,7 +43,7 @@ export function TimelineView({ events, allowDownloads }: { events: TimelineEvent
         aria-label="Years"
         className="sticky top-16 z-30 mb-12 border-y border-taupe/20 bg-ivory/90 backdrop-blur-md sm:top-20"
       >
-        <ul className="no-scrollbar mx-auto flex max-w-4xl gap-1 overflow-x-auto px-5 py-3">
+        <ul className="no-scrollbar mx-auto flex w-fit max-w-full gap-1 overflow-x-auto px-5 py-3">
           {years.map(([year]) => (
             <li key={year}>
               <a
@@ -135,7 +136,7 @@ export function TimelineView({ events, allowDownloads }: { events: TimelineEvent
         ))}
 
         <div className="relative z-10 mx-auto w-fit rounded-full bg-ivory px-6 text-center">
-          <p className="font-serif text-6xl text-cocoa">♾️</p>
+          <p className="font-serif text-6xl text-cocoa"><InfinityText text="♾️" /></p>
           <p className="eyebrow mt-2">And on, forever</p>
         </div>
       </div>

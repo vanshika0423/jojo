@@ -18,7 +18,7 @@ export function PhotoStrip({ children, label }: { children: React.ReactNode; lab
         role="region"
         aria-label={label}
         tabIndex={0}
-        className="no-scrollbar flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-5 pb-4 sm:gap-6 sm:px-10"
+        className="no-scrollbar flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto scroll-smooth px-5 pb-4 sm:scroll-px-10 sm:gap-6 sm:px-10"
       >
         {children}
       </div>

@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { mainNav, site } from "@/lib/site";
 import { cn } from "@/lib/cn";
+import { InfinityText } from "@/components/site/infinity-text";
 
 function subscribeScroll(callback: () => void) {
   window.addEventListener("scroll", callback, { passive: true });
@@ -50,7 +51,7 @@ export function SiteHeader() {
           onClick={() => setOpen(false)}
           className="font-serif text-2xl tracking-tight sm:text-[1.7rem]"
         >
-          {site.name}
+          <InfinityText text={site.name} />
         </Link>
 
         <ul className="hidden items-center gap-8 lg:flex">
@@ -133,7 +134,7 @@ export function SiteHeader() {
                 </motion.li>
               ))}
             </ul>
-            <p className="px-6 pb-10 pt-8 text-sm text-taupe-dark">11 March 2017 — ♾️</p>
+            <p className="px-6 pb-10 pt-8 text-sm text-taupe-dark">11 March 2017 — <InfinityText text="♾️" /></p>
           </motion.div>
         ) : null}
       </AnimatePresence>

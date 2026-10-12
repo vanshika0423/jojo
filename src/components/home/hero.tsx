@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import type { HeroSettings } from "@/lib/settings";
+import { InfinityText } from "@/components/site/infinity-text";
 
 /**
  * Full-screen opening. The photograph is rendered on the server and passed in
@@ -47,7 +48,7 @@ export function Hero({ hero, media }: { hero: HeroSettings; media: React.ReactNo
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.4, delay: 0.4, ease }}
         >
-          {hero.title}
+          <InfinityText text={hero.title} />
         </motion.h1>
         <motion.p
           className="mt-4 text-sm uppercase tracking-[0.3em] text-ivory/85 sm:text-base"
@@ -55,7 +56,7 @@ export function Hero({ hero, media }: { hero: HeroSettings; media: React.ReactNo
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.2, delay: 0.75, ease }}
         >
-          {hero.dates}
+          <InfinityText text={hero.dates} />
         </motion.p>
         {hero.tagline ? (
           <motion.p

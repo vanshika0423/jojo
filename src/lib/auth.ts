@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getServerClient } from "@/lib/supabase/server";
@@ -9,7 +10,7 @@ export type AdminUser = { id: string; email: string | null };
  * Returns the signed-in admin, or null. The JWT is verified via getClaims()
  * and admin membership is checked in the database — never trust the client.
  */
-export async function getAdmin(): Promise<AdminUser | null> {
+export const getAdmin = cache(async function getAdmin(): Promise<AdminUser | null> {
   if (!isSupabaseConfigured) return null;
   const supabase = await getServerClient();
   const { data, error } = await supabase.auth.getClaims();
@@ -22,7 +23,7 @@ export async function getAdmin(): Promise<AdminUser | null> {
     id: data.claims.sub,
     email: typeof data.claims.email === "string" ? data.claims.email : null,
   };
-}
+});
 
 /** For pages: send anyone who is not an admin to the sign-in screen. */
 export async function requireAdmin(): Promise<AdminUser> {

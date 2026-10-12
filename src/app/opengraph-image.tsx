@@ -34,7 +34,6 @@ export default async function OpengraphImage() {
         }}
       >
         {photo ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={photo} alt="" width={size.width} height={size.height} style={{ position: "absolute", inset: 0 }} />
         ) : null}
         <div

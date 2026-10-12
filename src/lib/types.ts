@@ -103,3 +103,23 @@ export type Letter = {
 export type ActionResult<T = undefined> =
   | ({ ok: true } & (T extends undefined ? object : { data: T }))
   | { ok: false; error: string };
+
+export type AdminPhoto = Photo & {
+  albumIds: string[];
+  bytes: number | null;
+  originalFilename: string | null;
+  createdAt: string;
+};
+
+/** What Cloudinary returns from a direct upload, as sent back to the server. */
+export type UploadedAsset = {
+  public_id: string;
+  version: number;
+  signature: string;
+  width?: number;
+  height?: number;
+  format?: string;
+  bytes?: number;
+  duration?: number;
+  original_filename?: string;
+};
