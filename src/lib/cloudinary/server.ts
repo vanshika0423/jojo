@@ -2,10 +2,10 @@ import "server-only";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { v2 as cloudinary } from "cloudinary";
 import { VIDEO_RENDITIONS } from "@/lib/cloudinary/urls";
-import { cloudinaryCloudName } from "@/lib/env";
+import { cloudinaryCloudName, realValue } from "@/lib/env";
 
-const apiKey = process.env.CLOUDINARY_API_KEY ?? "";
-const apiSecret = process.env.CLOUDINARY_API_SECRET ?? "";
+const apiKey = realValue(process.env.CLOUDINARY_API_KEY);
+const apiSecret = realValue(process.env.CLOUDINARY_API_SECRET);
 
 export const UPLOAD_ROOT = (process.env.CLOUDINARY_FOLDER || "forever-jojo").replace(/[^a-z0-9-_/]/gi, "");
 

@@ -8,11 +8,17 @@ export const siteUrl = (
     : "http://localhost:3000")
 ).replace(/\/$/, "");
 
-export const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+export const supabaseUrl = realValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
 export const supabasePublishableKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-export const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
+/** Treat the example values from .env.example as "not set". */
+export function realValue(value: string | undefined) {
+  const v = (value ?? "").trim();
+  return /^your[-_]|your-project-ref|x{6,}|^0+$/i.test(v) ? "" : v;
+}
+
+export const cloudinaryCloudName = realValue(process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME);
 
 /** Supabase is optional: when its keys are set, sign-in uses Supabase Auth. */
 export const isSupabaseAuth = Boolean(supabaseUrl && supabasePublishableKey);

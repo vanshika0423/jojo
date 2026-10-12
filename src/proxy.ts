@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 /**
  * Runs only for /admin. Sends signed-out visitors to the sign-in page early
@@ -13,8 +14,8 @@ export async function proxy(request: NextRequest) {
 
   if (!process.env.DATABASE_URL) return isLogin ? NextResponse.next() : toLogin();
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = supabaseUrl;
+  const key = supabasePublishableKey;
 
   // Built-in sign-in: a session cookie must at least be present.
   if (!url || !key) {
