@@ -2,18 +2,23 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 /**
- * Runs only for /admin. Refreshes the Supabase session cookie and sends
- * signed-out visitors to the sign-in page early. This is a convenience, not
- * the security boundary: every admin page and server action re-checks the
- * user and their admin membership, and the database enforces RLS.
+ * Runs only for /admin. Sends signed-out visitors to the sign-in page early
+ * (and refreshes the Supabase session when Supabase sign-in is used). This is
+ * a convenience, not the security boundary: every admin page and server action
+ * re-checks the session and admin membership against the database.
  */
 export async function proxy(request: NextRequest) {
+  const isLogin = request.nextUrl.pathname === "/admin/login";
+  const toLogin = () => NextResponse.redirect(new URL("/admin/login", request.url));
+
+  if (!process.env.DATABASE_URL) return isLogin ? NextResponse.next() : toLogin();
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const isLogin = request.nextUrl.pathname === "/admin/login";
+
+  // Built-in sign-in: a session cookie must at least be present.
   if (!url || !key) {
-    // Not set up yet: the sign-in page explains what to configure.
-    return isLogin ? NextResponse.next() : NextResponse.redirect(new URL("/admin/login", request.url));
+    return isLogin || request.cookies.has("jojo_session") ? NextResponse.next() : toLogin();
   }
 
   let response = NextResponse.next({ request });
@@ -29,14 +34,8 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-
   const { data } = await supabase.auth.getClaims();
-  if (!data?.claims && !isLogin) {
-    const login = request.nextUrl.clone();
-    login.pathname = "/admin/login";
-    login.search = "";
-    return NextResponse.redirect(login);
-  }
+  if (!data?.claims && !isLogin) return toLogin();
   return response;
 }
 

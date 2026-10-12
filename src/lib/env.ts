@@ -14,7 +14,8 @@ export const supabasePublishableKey =
 
 export const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey);
+/** Supabase is optional: when its keys are set, sign-in uses Supabase Auth. */
+export const isSupabaseAuth = Boolean(supabaseUrl && supabasePublishableKey);
 
 export const isCloudinaryConfigured = Boolean(cloudinaryCloudName);
 

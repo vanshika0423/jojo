@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { getSettings } from "@/lib/data/public";
-import { getPublicClient } from "@/lib/supabase/public";
+import { db } from "@/lib/db";
 
 export type SubmitLetterState = { status: "idle" | "success" | "error"; message?: string };
 
@@ -40,19 +40,17 @@ export async function submitLetter(_: SubmitLetterState, formData: FormData): Pr
   }
 
   const settings = await getSettings();
-  const supabase = getPublicClient();
-  if (!settings.features.lettersOpen || !supabase) {
+  const sql = db();
+  if (!settings.features.lettersOpen || !sql) {
     return { status: "error", message: "Letters can’t be received right now." };
   }
 
-  // Row level security only allows visitors to insert *pending* letters.
-  const { error } = await supabase.from("letters").insert({
-    author_name: authorName,
-    body,
-    visibility,
-    status: "pending",
-  });
-  if (error) {
+  // Visitors can only ever create *pending* letters; the family approves them.
+  try {
+    await sql`
+      insert into public.letters (author_name, body, visibility, status)
+      values (${authorName}, ${body}, ${visibility}, 'pending')`;
+  } catch (error) {
     console.error("[letters] submit failed", error);
     return { status: "error", message: "Something went wrong. Please try again in a moment." };
   }

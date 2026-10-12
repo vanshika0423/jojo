@@ -48,7 +48,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${cormorant.variable} ${inter.variable} antialiased`}>
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={`${cormorant.variable} ${inter.variable} antialiased`}
+    >
       <body className="min-h-dvh">
         <MotionProvider>{children}</MotionProvider>
       </body>

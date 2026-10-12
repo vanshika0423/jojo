@@ -1,6 +1,6 @@
 import "server-only";
 import { requireAdmin } from "@/lib/auth";
-import { getServerClient } from "@/lib/supabase/server";
+import { PHOTO_SQL_COLUMNS, VIDEO_SQL_COLUMNS, requireDb } from "@/lib/db";
 import { defaultSettings, parseSetting, type SiteSettings } from "@/lib/settings";
 import type {
   Album,
@@ -14,8 +14,6 @@ import type {
   Video,
 } from "@/lib/types";
 import {
-  PHOTO_COLUMNS,
-  VIDEO_COLUMNS,
   toAlbum,
   toLetter,
   toLittleThing,
@@ -24,14 +22,14 @@ import {
   toTimelineEvent,
   toVideo,
 } from "@/lib/data/mappers";
-import { sanitizeSearch } from "@/lib/data/public";
+import { likePattern, photoJson, sanitizeSearch, timelineMediaJson, type Row } from "@/lib/data/public";
 
-// Dashboard readers. They run as the signed-in user, so RLS lets admins see
-// drafts while everyone else sees nothing. Never cached.
+// Dashboard readers: drafts included. Every one checks the admin first.
+// Never cached.
 
-async function adminClient() {
+async function adminDb() {
   await requireAdmin();
-  return getServerClient();
+  return requireDb();
 }
 
 export type AdminPhotoFilter = "all" | "published" | "draft" | "favourites";
@@ -44,17 +42,18 @@ export type AdminPhotoQuery = {
   limit?: number;
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- PostgREST rows */
-export function toAdminPhoto(row: any): AdminPhoto {
+export function toAdminPhoto(row: Row): AdminPhoto {
   return {
     ...toPhoto(row),
-    albumIds: (row.photo_albums ?? []).map((a: any) => a.album_id),
-    bytes: row.bytes ?? null,
+    albumIds: Array.isArray(row.album_ids) ? row.album_ids : [],
+    bytes: row.bytes != null ? Number(row.bytes) : null,
     originalFilename: row.original_filename ?? null,
-    createdAt: row.created_at,
+    createdAt: String(row.created_at),
   };
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */
+
+const ADMIN_PHOTO_EXTRA = `p.bytes, p.original_filename, p.created_at::text as created_at,
+  coalesce((select array_agg(pa.album_id::text) from public.photo_albums pa where pa.photo_id = p.id), '{}') as album_ids`;
 
 export async function listAdminPhotos({
   filter = "all",
@@ -63,123 +62,101 @@ export async function listAdminPhotos({
   offset = 0,
   limit = 60,
 }: AdminPhotoQuery): Promise<{ photos: AdminPhoto[]; total: number; hasMore: boolean }> {
-  const supabase = await adminClient();
-  const join = albumId ? "photo_albums!inner(album_id)" : "photo_albums(album_id)";
-  let query = supabase
-    .from("photos")
-    .select(`${PHOTO_COLUMNS}, bytes, original_filename, created_at, ${join}`, { count: "exact" });
-  if (albumId) query = query.eq("photo_albums.album_id", albumId);
-  if (filter === "published") query = query.eq("published", true);
-  if (filter === "draft") query = query.eq("published", false);
-  if (filter === "favourites") query = query.eq("is_favourite", true);
+  const sql = await adminDb();
   const search = sanitizeSearch(q);
-  if (search) {
-    const tag = search.toLowerCase().replace(/\s+/g, "-");
-    query = query.or(`caption.ilike.%${search}%,original_filename.ilike.%${search}%,tags.cs.{"${tag}"}`);
-  }
-  const { data, count, error } = await query
-    .order("position")
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
-  if (error) throw new Error(error.message);
-  let photos = (data ?? []).map(toAdminPhoto);
-  if (albumId) {
-    // The inner join only returned the filtered album; fetch the full membership.
-    const ids = photos.map((p) => p.id);
-    if (ids.length) {
-      const { data: links } = await supabase
-        .from("photo_albums")
-        .select("photo_id, album_id")
-        .in("photo_id", ids);
-      const byPhoto = new Map<string, string[]>();
-      for (const l of links ?? []) byPhoto.set(l.photo_id, [...(byPhoto.get(l.photo_id) ?? []), l.album_id]);
-      photos = photos.map((p) => ({ ...p, albumIds: byPhoto.get(p.id) ?? [] }));
-    }
-  }
-  return { photos, total: count ?? photos.length, hasMore: offset + photos.length < (count ?? 0) };
+  const tag = search.toLowerCase().replace(/\s+/g, "-");
+  const pattern = likePattern(search);
+  const rows = await sql<Row[]>`
+    select ${sql.unsafe(PHOTO_SQL_COLUMNS)}, ${sql.unsafe(ADMIN_PHOTO_EXTRA)}, count(*) over () as total_count
+    from public.photos p
+    where true
+      ${albumId ? sql`and exists (select 1 from public.photo_albums pa where pa.photo_id = p.id and pa.album_id = ${albumId})` : sql``}
+      ${filter === "published" ? sql`and p.published` : sql``}
+      ${filter === "draft" ? sql`and not p.published` : sql``}
+      ${filter === "favourites" ? sql`and p.is_favourite` : sql``}
+      ${
+        search
+          ? sql`and (p.caption ilike ${pattern} or p.original_filename ilike ${pattern} or p.tags @> array[${tag}]::text[])`
+          : sql``
+      }
+    order by p.position, p.created_at desc
+    limit ${limit} offset ${offset}`;
+  const photos = rows.map(toAdminPhoto);
+  const total = rows.length ? Number(rows[0].total_count) : 0;
+  return { photos, total, hasMore: offset + photos.length < total };
 }
 
 export async function getAdminAlbums(): Promise<Array<Album & { photoCount: number; cover: Photo | null }>> {
-  const supabase = await adminClient();
-  const { data, error } = await supabase
-    .from("albums")
-    .select(
-      `id, slug, name, description, cover_photo_id, position, published, photo_albums(count),
-       cover:photos!albums_cover_photo_id_fkey(${PHOTO_COLUMNS})`,
-    )
-    .order("position")
-    .order("name");
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => ({
+  const sql = await adminDb();
+  const rows = await sql<Row[]>`
+    select a.id, a.slug, a.name, a.description, a.cover_photo_id, a.position, a.published,
+      (select count(*) from public.photo_albums pa where pa.album_id = a.id)::int as photo_count,
+      ${photoJson(sql, "a.cover_photo_id", false)} as cover
+    from public.albums a
+    order by a.position, a.name`;
+  return rows.map((row) => ({
     ...toAlbum(row),
-    photoCount: (row.photo_albums as unknown as Array<{ count: number }>)?.[0]?.count ?? 0,
-    cover: row.cover ? toPhoto(row.cover as unknown as Record<string, unknown>) : null,
+    photoCount: row.photo_count ?? 0,
+    cover: row.cover ? toPhoto(row.cover) : null,
   }));
 }
 
 export async function getAdminVideos(): Promise<Video[]> {
-  const supabase = await adminClient();
-  const { data, error } = await supabase
-    .from("videos")
-    .select(`${VIDEO_COLUMNS}, video_albums(album_id)`)
-    .order("position")
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toVideo);
+  const sql = await adminDb();
+  const rows = await sql<Row[]>`
+    select ${sql.unsafe(VIDEO_SQL_COLUMNS)},
+      coalesce((select json_agg(json_build_object('album_id', va.album_id))
+                from public.video_albums va where va.video_id = v.id), '[]') as video_albums
+    from public.videos v
+    order by v.position, v.created_at desc`;
+  return rows.map(toVideo);
 }
 
 export async function getAdminTimeline(): Promise<TimelineEvent[]> {
-  const supabase = await adminClient();
-  const { data, error } = await supabase
-    .from("timeline_events")
-    .select(
-      `id, event_date, date_precision, title, story, published,
-       timeline_event_media(position, photo:photos(${PHOTO_COLUMNS}), video:videos(${VIDEO_COLUMNS}))`,
-    )
-    .order("event_date");
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toTimelineEvent);
+  const sql = await adminDb();
+  const rows = await sql<Row[]>`
+    select e.id, e.event_date, e.date_precision, e.title, e.story, e.published,
+      ${timelineMediaJson(sql, false)} as timeline_event_media
+    from public.timeline_events e
+    order by e.event_date`;
+  return rows.map(toTimelineEvent);
 }
 
 export async function getAdminStory(): Promise<StorySection[]> {
-  const supabase = await adminClient();
-  const { data, error } = await supabase
-    .from("story_sections")
-    .select(`id, slug, title, body, position, published, photo:photos(${PHOTO_COLUMNS})`)
-    .order("position");
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toStorySection);
+  const sql = await adminDb();
+  const rows = await sql<Row[]>`
+    select s.id, s.slug, s.title, s.body, s.position, s.published, ${photoJson(sql, "s.photo_id", false)} as photo
+    from public.story_sections s
+    order by s.position`;
+  return rows.map(toStorySection);
 }
 
 export async function getAdminLittleThings(): Promise<LittleThing[]> {
-  const supabase = await adminClient();
-  const { data, error } = await supabase
-    .from("little_things")
-    .select(`id, slug, title, body, emoji, position, published, photo:photos(${PHOTO_COLUMNS})`)
-    .order("position");
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toLittleThing);
+  const sql = await adminDb();
+  const rows = await sql<Row[]>`
+    select t.id, t.slug, t.title, t.body, t.emoji, t.position, t.published,
+      ${photoJson(sql, "t.photo_id", false)} as photo
+    from public.little_things t
+    order by t.position`;
+  return rows.map(toLittleThing);
 }
 
 export async function getAdminLetters(status: LetterStatus | "all" = "all"): Promise<Letter[]> {
-  const supabase = await adminClient();
-  let query = supabase
-    .from("letters")
-    .select(
-      `id, author_name, body, letter_date, visibility, status, written_by_admin, created_at, photo:photos(${PHOTO_COLUMNS})`,
-    )
-    .order("created_at", { ascending: false })
-    .limit(500);
-  if (status !== "all") query = query.eq("status", status);
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(toLetter);
+  const sql = await adminDb();
+  const rows = await sql<Row[]>`
+    select l.id, l.author_name, l.body, l.letter_date, l.visibility, l.status, l.written_by_admin,
+      l.created_at::text as created_at, ${photoJson(sql, "l.photo_id", false)} as photo
+    from public.letters l
+    ${status !== "all" ? sql`where l.status = ${status}` : sql``}
+    order by l.created_at desc
+    limit 500`;
+  return rows.map(toLetter);
 }
 
 export async function getAdminSettings(): Promise<SiteSettings & { heroPhoto: AdminPhoto | null }> {
-  const supabase = await adminClient();
-  const { data } = await supabase.from("site_settings").select("key, value");
-  const byKey = new Map((data ?? []).map((r) => [r.key as string, r.value as unknown]));
+  const sql = await adminDb();
+  const rows = await sql<Row[]>`select key, value from public.site_settings`;
+  const byKey = new Map(rows.map((r) => [r.key as string, r.value as unknown]));
   const settings: SiteSettings = {
     hero: parseSetting("hero", byKey.get("hero") ?? defaultSettings.hero),
     home: parseSetting("home", byKey.get("home") ?? defaultSettings.home),
@@ -187,31 +164,30 @@ export async function getAdminSettings(): Promise<SiteSettings & { heroPhoto: Ad
   };
   let heroPhoto: AdminPhoto | null = null;
   if (settings.hero.photoId) {
-    const { data: row } = await supabase
-      .from("photos")
-      .select(`${PHOTO_COLUMNS}, bytes, original_filename, created_at, photo_albums(album_id)`)
-      .eq("id", settings.hero.photoId)
-      .maybeSingle();
+    const [row] = await sql<Row[]>`
+      select ${sql.unsafe(PHOTO_SQL_COLUMNS)}, ${sql.unsafe(ADMIN_PHOTO_EXTRA)}
+      from public.photos p where p.id = ${settings.hero.photoId}`;
     heroPhoto = row ? toAdminPhoto(row) : null;
   }
   return { ...settings, heroPhoto };
 }
 
 export async function getOverview() {
-  const supabase = await adminClient();
-  const count = async (table: string, filter?: { column: string; value: string | boolean }) => {
-    let q = supabase.from(table).select("id", { count: "exact", head: true });
-    if (filter) q = q.eq(filter.column, filter.value);
-    const { count: c } = await q;
-    return c ?? 0;
+  const sql = await adminDb();
+  const [row] = await sql<Row[]>`
+    select
+      (select count(*) from public.photos)::int as photos,
+      (select count(*) from public.photos where published)::int as published_photos,
+      (select count(*) from public.videos)::int as videos,
+      (select count(*) from public.timeline_events)::int as events,
+      (select count(*) from public.letters where status = 'pending')::int as pending_letters,
+      (select count(*) from public.albums)::int as albums`;
+  return {
+    photos: row.photos,
+    publishedPhotos: row.published_photos,
+    videos: row.videos,
+    events: row.events,
+    pendingLetters: row.pending_letters,
+    albums: row.albums,
   };
-  const [photos, publishedPhotos, videos, events, pendingLetters, albums] = await Promise.all([
-    count("photos"),
-    count("photos", { column: "published", value: true }),
-    count("videos"),
-    count("timeline_events"),
-    count("letters", { column: "status", value: "pending" }),
-    count("albums"),
-  ]);
-  return { photos, publishedPhotos, videos, events, pendingLetters, albums };
 }

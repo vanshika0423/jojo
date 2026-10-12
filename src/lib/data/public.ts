@@ -1,11 +1,9 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
-import { getPublicClient } from "@/lib/supabase/public";
+import { PHOTO_SQL_COLUMNS, VIDEO_SQL_COLUMNS, db } from "@/lib/db";
 import { defaultSettings, parseSetting, type SiteSettings } from "@/lib/settings";
 import type { Album, Letter, LittleThing, Photo, StorySection, TimelineEvent, Video } from "@/lib/types";
 import {
-  PHOTO_COLUMNS,
-  VIDEO_COLUMNS,
   toAlbum,
   toLetter,
   toLittleThing,
@@ -24,10 +22,23 @@ import { TAGS } from "@/lib/data/tags";
 
 // Every reader here is cached with `use cache` and tagged, so public pages are
 // served from the static shell and refreshed the moment an admin saves.
-// When Supabase is not configured yet, readers return gentle defaults.
+// Only *published* content is ever returned. When the database is not
+// configured yet, readers return gentle defaults.
+
+/* eslint-disable @typescript-eslint/no-explicit-any -- raw SQL rows go through the mappers */
+export type Row = Record<string, any>;
 
 function logError(scope: string, error: unknown) {
   console.error(`[data] ${scope} failed`, error);
+}
+
+async function safely<T>(scope: string, fallback: T, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    logError(scope, error);
+    return fallback;
+  }
 }
 
 export type PublicSettings = SiteSettings & { heroPhoto: Photo | null };
@@ -37,28 +48,27 @@ export async function getSettings(): Promise<PublicSettings> {
   cacheLife("hours");
   cacheTag(TAGS.settings, TAGS.photos);
 
-  const supabase = getPublicClient();
-  if (!supabase) return { ...defaultSettings, heroPhoto: null };
+  const sql = db();
+  const fallback = { ...defaultSettings, heroPhoto: null };
+  if (!sql) return fallback;
 
-  const { data, error } = await supabase.from("site_settings").select("key, value");
-  if (error) logError("settings", error);
-  const byKey = new Map((data ?? []).map((r) => [r.key as string, r.value as unknown]));
-  const settings: SiteSettings = {
-    hero: parseSetting("hero", byKey.get("hero")),
-    home: parseSetting("home", byKey.get("home")),
-    features: parseSetting("features", byKey.get("features")),
-  };
-
-  let heroPhoto: Photo | null = null;
-  if (settings.hero.photoId) {
-    const { data: row } = await supabase
-      .from("photos")
-      .select(PHOTO_COLUMNS)
-      .eq("id", settings.hero.photoId)
-      .maybeSingle();
-    heroPhoto = row ? toPhoto(row) : null;
-  }
-  return { ...settings, heroPhoto };
+  return safely("settings", fallback, async () => {
+    const rows = await sql<Row[]>`select key, value from public.site_settings`;
+    const byKey = new Map(rows.map((r) => [r.key as string, r.value as unknown]));
+    const settings: SiteSettings = {
+      hero: parseSetting("hero", byKey.get("hero")),
+      home: parseSetting("home", byKey.get("home")),
+      features: parseSetting("features", byKey.get("features")),
+    };
+    let heroPhoto: Photo | null = null;
+    if (settings.hero.photoId) {
+      const [row] = await sql<Row[]>`
+        select ${sql.unsafe(PHOTO_SQL_COLUMNS)} from public.photos p
+        where p.id = ${settings.hero.photoId} and p.published`;
+      heroPhoto = row ? toPhoto(row) : null;
+    }
+    return { ...settings, heroPhoto };
+  });
 }
 
 export async function getAlbums(): Promise<Album[]> {
@@ -66,15 +76,14 @@ export async function getAlbums(): Promise<Album[]> {
   cacheLife("hours");
   cacheTag(TAGS.albums);
 
-  const supabase = getPublicClient();
-  if (!supabase) return defaultAlbums;
-  const { data, error } = await supabase
-    .from("albums")
-    .select("id, slug, name, description, cover_photo_id, position, published")
-    .order("position")
-    .order("name");
-  if (error) logError("albums", error);
-  return (data ?? []).map(toAlbum);
+  const sql = db();
+  if (!sql) return defaultAlbums;
+  return safely("albums", [], async () => {
+    const rows = await sql<Row[]>`
+      select id, slug, name, description, cover_photo_id, position, published
+      from public.albums where published order by position, name`;
+    return rows.map(toAlbum);
+  });
 }
 
 export type PhotoQuery = {
@@ -87,7 +96,7 @@ export type PhotoQuery = {
 
 export type PhotoPage = { photos: Photo[]; total: number | null; hasMore: boolean };
 
-/** Keep search input to characters that are safe inside a PostgREST filter. */
+/** Normalise free-text search input. */
 export function sanitizeSearch(q: string | null | undefined) {
   return (q ?? "")
     .normalize("NFKC")
@@ -97,43 +106,38 @@ export function sanitizeSearch(q: string | null | undefined) {
     .slice(0, 60);
 }
 
+/** Escape LIKE wildcards so search text is matched literally. */
+export function likePattern(search: string) {
+  return `%${search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
 async function queryPhotos({ album, favourites, q, offset = 0, limit = 40 }: PhotoQuery): Promise<PhotoPage> {
-  const supabase = getPublicClient();
-  if (!supabase) return { photos: [], total: 0, hasMore: false };
+  const sql = db();
+  const empty = { photos: [], total: 0, hasMore: false };
+  if (!sql) return empty;
 
-  let albumId: string | null = null;
-  if (album) {
-    const { data } = await supabase.from("albums").select("id").eq("slug", album).maybeSingle();
-    if (!data) return { photos: [], total: 0, hasMore: false };
-    albumId = data.id;
-  }
-
-  const columns = albumId ? `${PHOTO_COLUMNS}, photo_albums!inner(album_id)` : PHOTO_COLUMNS;
-  let query = supabase
-    .from("photos")
-    .select(columns, { count: offset === 0 ? "exact" : undefined })
-    .eq("published", true);
-  if (albumId) query = query.eq("photo_albums.album_id", albumId);
-  if (favourites) query = query.eq("is_favourite", true);
-  const search = sanitizeSearch(q);
-  if (search) {
+  return safely("photos", empty, async () => {
+    const search = sanitizeSearch(q);
     const tag = search.toLowerCase().replace(/\s+/g, "-");
-    query = query.or(`caption.ilike.%${search}%,tags.cs.{"${tag}"}`);
-  }
-  const { data, error, count } = await query
-    .order("position")
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
-  if (error) {
-    logError("photos", error);
-    return { photos: [], total: 0, hasMore: false };
-  }
-  const photos = (data ?? []).map((r) => toPhoto(r as unknown as Record<string, unknown>));
-  return {
-    photos,
-    total: count ?? null,
-    hasMore: photos.length === limit,
-  };
+    const rows = await sql<Row[]>`
+      select ${sql.unsafe(PHOTO_SQL_COLUMNS)}, count(*) over () as total_count
+      from public.photos p
+      where p.published
+        ${
+          album
+            ? sql`and exists (
+                select 1 from public.photo_albums pa join public.albums a on a.id = pa.album_id
+                where pa.photo_id = p.id and a.slug = ${album} and a.published)`
+            : sql``
+        }
+        ${favourites ? sql`and p.is_favourite` : sql``}
+        ${search ? sql`and (p.caption ilike ${likePattern(search)} or p.tags @> array[${tag}]::text[])` : sql``}
+      order by p.position, p.created_at desc
+      limit ${limit} offset ${offset}`;
+    const photos = rows.map(toPhoto);
+    const total = rows.length ? Number(rows[0].total_count) : offset === 0 ? 0 : null;
+    return { photos, total, hasMore: photos.length === limit };
+  });
 }
 
 /** Cached browsing (albums, favourites, paging). */
@@ -170,16 +174,18 @@ export async function getVideos(): Promise<Video[]> {
   cacheLife("hours");
   cacheTag(TAGS.videos, TAGS.albums);
 
-  const supabase = getPublicClient();
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("videos")
-    .select(`${VIDEO_COLUMNS}, video_albums(album_id)`)
-    .eq("published", true)
-    .order("position")
-    .order("created_at", { ascending: false });
-  if (error) logError("videos", error);
-  return (data ?? []).map(toVideo);
+  const sql = db();
+  if (!sql) return [];
+  return safely("videos", [], async () => {
+    const rows = await sql<Row[]>`
+      select ${sql.unsafe(VIDEO_SQL_COLUMNS)},
+        coalesce((select json_agg(json_build_object('album_id', va.album_id))
+                  from public.video_albums va where va.video_id = v.id), '[]') as video_albums
+      from public.videos v
+      where v.published
+      order by v.position, v.created_at desc`;
+    return rows.map(toVideo);
+  });
 }
 
 export async function getFeaturedVideo(): Promise<Video | null> {
@@ -187,23 +193,41 @@ export async function getFeaturedVideo(): Promise<Video | null> {
   return videos.find((v) => v.isFeatured) ?? videos[0] ?? null;
 }
 
+/** JSON for one photo/video, or null — embedded in other rows like PostgREST did. */
+export function photoJson(sql: NonNullable<ReturnType<typeof db>>, idColumn: string, publishedOnly: boolean) {
+  return sql.unsafe(
+    `(select to_jsonb(x) from (select ${PHOTO_SQL_COLUMNS} from public.photos p
+       where p.id = ${idColumn}${publishedOnly ? " and p.published" : ""}) x)`,
+  );
+}
+
+export function timelineMediaJson(sql: NonNullable<ReturnType<typeof db>>, publishedOnly: boolean) {
+  const pub = (alias: string) => (publishedOnly ? ` and ${alias}.published` : "");
+  return sql.unsafe(`coalesce((
+    select json_agg(json_build_object(
+      'position', m.position,
+      'photo', (select to_jsonb(x) from (select ${PHOTO_SQL_COLUMNS} from public.photos p where p.id = m.photo_id${pub("p")}) x),
+      'video', (select to_jsonb(y) from (select ${VIDEO_SQL_COLUMNS} from public.videos v where v.id = m.video_id${pub("v")}) y)
+    ) order by m.position)
+    from public.timeline_event_media m where m.event_id = e.id), '[]')`);
+}
+
 export async function getTimeline(): Promise<TimelineEvent[]> {
   "use cache";
   cacheLife("hours");
   cacheTag(TAGS.timeline, TAGS.photos, TAGS.videos);
 
-  const supabase = getPublicClient();
-  if (!supabase) return defaultTimeline;
-  const { data, error } = await supabase
-    .from("timeline_events")
-    .select(
-      `id, event_date, date_precision, title, story, published,
-       timeline_event_media(position, photo:photos(${PHOTO_COLUMNS}), video:videos(${VIDEO_COLUMNS}))`,
-    )
-    .eq("published", true)
-    .order("event_date");
-  if (error) logError("timeline", error);
-  return (data ?? []).map(toTimelineEvent);
+  const sql = db();
+  if (!sql) return defaultTimeline;
+  return safely("timeline", [], async () => {
+    const rows = await sql<Row[]>`
+      select e.id, e.event_date, e.date_precision, e.title, e.story, e.published,
+        ${timelineMediaJson(sql, true)} as timeline_event_media
+      from public.timeline_events e
+      where e.published
+      order by e.event_date`;
+    return rows.map(toTimelineEvent);
+  });
 }
 
 export async function getStorySections(): Promise<StorySection[]> {
@@ -211,15 +235,16 @@ export async function getStorySections(): Promise<StorySection[]> {
   cacheLife("hours");
   cacheTag(TAGS.story, TAGS.photos);
 
-  const supabase = getPublicClient();
-  if (!supabase) return defaultStorySections;
-  const { data, error } = await supabase
-    .from("story_sections")
-    .select(`id, slug, title, body, position, published, photo:photos(${PHOTO_COLUMNS})`)
-    .eq("published", true)
-    .order("position");
-  if (error) logError("story", error);
-  return (data ?? []).map(toStorySection);
+  const sql = db();
+  if (!sql) return defaultStorySections;
+  return safely("story", [], async () => {
+    const rows = await sql<Row[]>`
+      select s.id, s.slug, s.title, s.body, s.position, s.published, ${photoJson(sql, "s.photo_id", true)} as photo
+      from public.story_sections s
+      where s.published
+      order by s.position`;
+    return rows.map(toStorySection);
+  });
 }
 
 export async function getLittleThings(): Promise<LittleThing[]> {
@@ -227,15 +252,17 @@ export async function getLittleThings(): Promise<LittleThing[]> {
   cacheLife("hours");
   cacheTag(TAGS.littleThings, TAGS.photos);
 
-  const supabase = getPublicClient();
-  if (!supabase) return defaultLittleThings;
-  const { data, error } = await supabase
-    .from("little_things")
-    .select(`id, slug, title, body, emoji, position, published, photo:photos(${PHOTO_COLUMNS})`)
-    .eq("published", true)
-    .order("position");
-  if (error) logError("little things", error);
-  return (data ?? []).map(toLittleThing);
+  const sql = db();
+  if (!sql) return defaultLittleThings;
+  return safely("little things", [], async () => {
+    const rows = await sql<Row[]>`
+      select t.id, t.slug, t.title, t.body, t.emoji, t.position, t.published,
+        ${photoJson(sql, "t.photo_id", true)} as photo
+      from public.little_things t
+      where t.published
+      order by t.position`;
+    return rows.map(toLittleThing);
+  });
 }
 
 export async function getPublicLetters(): Promise<Letter[]> {
@@ -243,17 +270,16 @@ export async function getPublicLetters(): Promise<Letter[]> {
   cacheLife("hours");
   cacheTag(TAGS.letters, TAGS.photos);
 
-  const supabase = getPublicClient();
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("letters")
-    .select(
-      `id, author_name, body, letter_date, visibility, status, written_by_admin, created_at, photo:photos(${PHOTO_COLUMNS})`,
-    )
-    .eq("status", "approved")
-    .eq("visibility", "public")
-    .order("letter_date", { ascending: false })
-    .limit(200);
-  if (error) logError("letters", error);
-  return (data ?? []).map(toLetter);
+  const sql = db();
+  if (!sql) return [];
+  return safely("letters", [], async () => {
+    const rows = await sql<Row[]>`
+      select l.id, l.author_name, l.body, l.letter_date, l.visibility, l.status, l.written_by_admin,
+        l.created_at::text as created_at, ${photoJson(sql, "l.photo_id", true)} as photo
+      from public.letters l
+      where l.status = 'approved' and l.visibility = 'public'
+      order by l.letter_date desc
+      limit 200`;
+    return rows.map(toLetter);
+  });
 }

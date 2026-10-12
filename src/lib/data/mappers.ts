@@ -9,14 +9,8 @@ import type {
   Video,
 } from "@/lib/types";
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- rows come from PostgREST */
+/* eslint-disable @typescript-eslint/no-explicit-any -- rows come straight from SQL */
 type Row = Record<string, any>;
-
-export const PHOTO_COLUMNS =
-  "id, public_id, version, width, height, caption, alt, taken_on, tags, is_favourite, allow_download, published, position";
-
-export const VIDEO_COLUMNS =
-  "id, public_id, version, width, height, duration, title, caption, recorded_on, poster_public_id, poster_version, poster_offset, is_featured, published, position";
 
 export function toPhoto(row: Row): Photo {
   return {

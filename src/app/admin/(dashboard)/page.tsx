@@ -1,12 +1,28 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
-import { Card, PageTitle, SetupNotice } from "@/components/admin/ui";
+import { AdminLoading, Card, PageTitle, SetupNotice } from "@/components/admin/ui";
 import { isCloudinaryServerConfigured } from "@/lib/cloudinary/server";
 import { getOverview } from "@/lib/data/admin";
 
 export const metadata: Metadata = { title: "Overview" };
 
-export default async function AdminOverviewPage() {
+export default function AdminOverviewPage() {
+  return (
+    <>
+      <PageTitle title="Welcome back">
+        Everything on the website can be changed from here. Nothing is published until you choose to publish
+        it.
+      </PageTitle>
+      {!isCloudinaryServerConfigured ? <SetupNotice service="Cloudinary" /> : null}
+      <Suspense fallback={<AdminLoading />}>
+        <AdminOverviewContent />
+      </Suspense>
+    </>
+  );
+}
+
+async function AdminOverviewContent() {
   const o = await getOverview();
   const stats = [
     { label: "Photos", value: o.photos, note: `${o.publishedPhotos} published`, href: "/admin/photos" },
@@ -49,11 +65,6 @@ export default async function AdminOverviewPage() {
   ];
   return (
     <>
-      <PageTitle title="Welcome back">
-        Everything on the website can be changed from here. Nothing is published until you choose to publish
-        it.
-      </PageTitle>
-      {!isCloudinaryServerConfigured ? <SetupNotice service="Cloudinary" /> : null}
       <ul className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {stats.map((s) => (
           <li key={s.label}>

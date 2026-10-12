@@ -1,6 +1,5 @@
 "use server";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { assertAdmin } from "@/lib/auth";
 import {
@@ -13,8 +12,9 @@ import {
 } from "@/lib/cloudinary/server";
 import { listAdminPhotos, type AdminPhotoQuery } from "@/lib/data/admin";
 import { TAGS } from "@/lib/data/tags";
+import type { Sql } from "@/lib/db";
 import type { ActionResult, AdminPhoto } from "@/lib/types";
-import { UserFacingError, check, isoDate, optionalText, runAdmin, uuid } from "./run";
+import { UserFacingError, isoDate, optionalText, runAdmin, uuid } from "./run";
 
 // ---------------------------------------------------------------------------
 // Uploading
@@ -54,9 +54,9 @@ function assertGenuine(asset: z.infer<typeof uploadedAsset>, kind: UploadKind) {
   }
 }
 
-async function topPosition(supabase: SupabaseClient, table: "photos" | "videos") {
-  const { data } = await supabase.from(table).select("position").order("position").limit(1).maybeSingle();
-  return data ? Number(data.position) : 0;
+async function topPosition(sql: Sql, table: "photos" | "videos") {
+  const [row] = await sql<{ top: number | null }[]>`select min(position) as top from ${sql(table)}`;
+  return row?.top != null ? Number(row.top) : 0;
 }
 
 const recordPhotosSchema = z.object({
@@ -71,9 +71,9 @@ export async function recordPhotoUploads(input: z.input<typeof recordPhotosSchem
     recordPhotosSchema,
     input,
     [TAGS.photos, TAGS.albums],
-    async ({ assets, publish, albumIds }, supabase) => {
+    async ({ assets, publish, albumIds }, sql) => {
       assets.forEach((a) => assertGenuine(a, "photo"));
-      const top = await topPosition(supabase, "photos");
+      const top = await topPosition(sql, "photos");
       const rows = assets.map((a, i) => ({
         public_id: a.public_id,
         version: a.version,
@@ -85,13 +85,16 @@ export async function recordPhotoUploads(input: z.input<typeof recordPhotosSchem
         published: publish,
         position: top - (assets.length - i),
       }));
-      const inserted = check(
-        await supabase.from("photos").upsert(rows, { onConflict: "public_id" }).select("id"),
-        "photo",
-      );
+      // Re-recording the same upload (e.g. a retry) updates it instead of duplicating.
+      const inserted = await sql<{ id: string }[]>`
+        insert into public.photos ${sql(rows)}
+        on conflict (public_id) do update set
+          version = excluded.version, width = excluded.width, height = excluded.height,
+          format = excluded.format, bytes = excluded.bytes, original_filename = excluded.original_filename
+        returning id`;
       if (albumIds.length) {
         const links = inserted.flatMap((p) => albumIds.map((album_id) => ({ photo_id: p.id, album_id })));
-        check(await supabase.from("photo_albums").upsert(links, { ignoreDuplicates: true }), "album link");
+        await sql`insert into public.photo_albums ${sql(links)} on conflict do nothing`;
       }
       return inserted.length;
     },
@@ -142,37 +145,17 @@ const updatePhotoSchema = z.object({
 });
 
 export async function updatePhoto(input: z.input<typeof updatePhotoSchema>) {
-  return runAdmin(
-    updatePhotoSchema,
-    input,
-    [TAGS.photos, TAGS.albums, TAGS.settings],
-    async (p, supabase) => {
-      check(
-        await supabase
-          .from("photos")
-          .update({
-            caption: p.caption,
-            alt: p.alt,
-            taken_on: p.takenOn,
-            tags: p.tags,
-            is_favourite: p.isFavourite,
-            allow_download: p.allowDownload,
-            published: p.published,
-          })
-          .eq("id", p.id),
-        "photo",
-      );
-      check(await supabase.from("photo_albums").delete().eq("photo_id", p.id), "album link");
-      if (p.albumIds.length) {
-        check(
-          await supabase
-            .from("photo_albums")
-            .insert(p.albumIds.map((album_id) => ({ photo_id: p.id, album_id }))),
-          "album link",
-        );
-      }
-    },
-  );
+  return runAdmin(updatePhotoSchema, input, [TAGS.photos, TAGS.albums, TAGS.settings], async (p, sql) => {
+    await sql`
+        update public.photos set
+          caption = ${p.caption}, alt = ${p.alt}, taken_on = ${p.takenOn}, tags = ${sql.array(p.tags)}::text[],
+          is_favourite = ${p.isFavourite}, allow_download = ${p.allowDownload}, published = ${p.published}
+        where id = ${p.id}`;
+    await sql`delete from public.photo_albums where photo_id = ${p.id}`;
+    if (p.albumIds.length) {
+      await sql`insert into public.photo_albums ${sql(p.albumIds.map((album_id) => ({ photo_id: p.id, album_id })))}`;
+    }
+  });
 }
 
 const bulkSchema = z.object({
@@ -196,52 +179,37 @@ export async function bulkUpdatePhotos(input: z.input<typeof bulkSchema>) {
     bulkSchema,
     input,
     [TAGS.photos, TAGS.albums, TAGS.settings, TAGS.story, TAGS.littleThings, TAGS.timeline, TAGS.letters],
-    async ({ ids, op, albumId }, supabase) => {
-      const set = (values: Record<string, boolean>) =>
-        supabase
-          .from("photos")
-          .update(values)
-          .in("id", ids)
-          .then((r) => check(r, "photos"));
-      switch (op) {
-        case "publish":
-          return void (await set({ published: true }));
-        case "unpublish":
-          return void (await set({ published: false }));
-        case "favourite":
-          return void (await set({ is_favourite: true }));
-        case "unfavourite":
-          return void (await set({ is_favourite: false }));
-        case "allowDownload":
-          return void (await set({ allow_download: true }));
-        case "disallowDownload":
-          return void (await set({ allow_download: false }));
-        case "addToAlbum":
-        case "removeFromAlbum": {
-          if (!albumId) throw new UserFacingError("Choose an album first.");
-          if (op === "addToAlbum") {
-            check(
-              await supabase.from("photo_albums").upsert(
-                ids.map((photo_id) => ({ photo_id, album_id: albumId })),
-                { ignoreDuplicates: true },
-              ),
-              "album link",
-            );
-          } else {
-            check(
-              await supabase.from("photo_albums").delete().eq("album_id", albumId).in("photo_id", ids),
-              "album link",
-            );
-          }
-          return;
-        }
-        case "delete": {
-          const rows = check(await supabase.from("photos").select("id, public_id").in("id", ids), "photos");
-          check(await supabase.from("photos").delete().in("id", ids), "photos");
-          await Promise.all(rows.map((r) => destroyAsset(r.public_id, "image")));
-          return;
-        }
+    async ({ ids, op, albumId }, sql, afterCommit) => {
+      const flags = {
+        publish: ["published", true],
+        unpublish: ["published", false],
+        favourite: ["is_favourite", true],
+        unfavourite: ["is_favourite", false],
+        allowDownload: ["allow_download", true],
+        disallowDownload: ["allow_download", false],
+      } as const;
+      if (op in flags) {
+        const [column, value] = flags[op as keyof typeof flags];
+        await sql`update public.photos set ${sql({ [column]: value })} where id in ${sql(ids)}`;
+        return;
       }
+      if (op === "addToAlbum" || op === "removeFromAlbum") {
+        if (!albumId) throw new UserFacingError("Choose an album first.");
+        if (op === "addToAlbum") {
+          await sql`
+            insert into public.photo_albums ${sql(ids.map((photo_id) => ({ photo_id, album_id: albumId })))}
+            on conflict do nothing`;
+        } else {
+          await sql`delete from public.photo_albums where album_id = ${albumId} and photo_id in ${sql(ids)}`;
+        }
+        return;
+      }
+      // delete
+      const removed = await sql<{ public_id: string }[]>`
+        delete from public.photos where id in ${sql(ids)} returning public_id`;
+      afterCommit(async () => {
+        await Promise.all(removed.map((r) => destroyAsset(r.public_id, "image")));
+      });
     },
   );
 }
@@ -256,10 +224,11 @@ const moveSchema = z.object({
 
 /** Fractional reordering: only the moved photo's row changes. */
 export async function movePhoto(input: z.input<typeof moveSchema>) {
-  return runAdmin(moveSchema, input, [TAGS.photos], async ({ id, afterId, beforeId }, supabase) => {
+  return runAdmin(moveSchema, input, [TAGS.photos], async ({ id, afterId, beforeId }, sql) => {
     const ids = [afterId, beforeId].filter((x): x is string => Boolean(x));
     const neighbours = ids.length
-      ? check(await supabase.from("photos").select("id, position").in("id", ids), "photos")
+      ? await sql<{ id: string; position: number }[]>`
+          select id, position from public.photos where id in ${sql(ids)}`
       : [];
     const pos = (nid: string | null) => {
       const n = neighbours.find((x) => x.id === nid);
@@ -271,8 +240,8 @@ export async function movePhoto(input: z.input<typeof moveSchema>) {
     if (after !== null && before !== null) position = (after + before) / 2;
     else if (after !== null) position = after + 1;
     else if (before !== null) position = before - 1;
-    else position = (await topPosition(supabase, "photos")) - 1;
-    check(await supabase.from("photos").update({ position }).eq("id", id), "photo");
+    else position = (await topPosition(sql, "photos")) - 1;
+    await sql`update public.photos set position = ${position} where id = ${id}`;
   });
 }
 
@@ -284,25 +253,17 @@ export async function replacePhoto(input: z.input<typeof replaceSchema>) {
     replaceSchema,
     input,
     [TAGS.photos, TAGS.settings, TAGS.story, TAGS.littleThings, TAGS.timeline, TAGS.letters],
-    async ({ id, asset }, supabase) => {
+    async ({ id, asset }, sql, afterCommit) => {
       assertGenuine(asset, "photo");
-      const old = check(await supabase.from("photos").select("public_id").eq("id", id).single(), "photo");
-      check(
-        await supabase
-          .from("photos")
-          .update({
-            public_id: asset.public_id,
-            version: asset.version,
-            width: asset.width ?? 1,
-            height: asset.height ?? 1,
-            format: asset.format ?? null,
-            bytes: asset.bytes ?? null,
-            original_filename: asset.original_filename ?? null,
-          })
-          .eq("id", id),
-        "photo",
-      );
-      if (old.public_id !== asset.public_id) await destroyAsset(old.public_id, "image");
+      const [old] = await sql<{ public_id: string }[]>`select public_id from public.photos where id = ${id}`;
+      if (!old) throw new UserFacingError("That photo no longer exists.");
+      await sql`
+        update public.photos set
+          public_id = ${asset.public_id}, version = ${asset.version},
+          width = ${asset.width ?? 1}, height = ${asset.height ?? 1}, format = ${asset.format ?? null},
+          bytes = ${asset.bytes ?? null}, original_filename = ${asset.original_filename ?? null}
+        where id = ${id}`;
+      if (old.public_id !== asset.public_id) afterCommit(() => destroyAsset(old.public_id, "image"));
     },
   );
 }
@@ -318,49 +279,34 @@ const recordVideoSchema = z.object({
 });
 
 export async function recordVideoUploads(input: z.input<typeof recordVideoSchema>) {
-  return runAdmin(
-    recordVideoSchema,
-    input,
-    [TAGS.videos],
-    async ({ assets, publish, albumIds }, supabase) => {
-      assets.forEach((a) => assertGenuine(a, "video"));
-      const top = await topPosition(supabase, "videos");
-      const inserted = check(
-        await supabase
-          .from("videos")
-          .upsert(
-            assets.map((a, i) => ({
-              public_id: a.public_id,
-              version: a.version,
-              width: a.width ?? null,
-              height: a.height ?? null,
-              duration: a.duration ?? null,
-              format: a.format ?? null,
-              bytes: a.bytes ?? null,
-              original_filename: a.original_filename ?? null,
-              title: a.original_filename?.replace(/[-_]+/g, " ").slice(0, 200) ?? null,
-              published: publish,
-              position: top - (assets.length - i),
-            })),
-            { onConflict: "public_id" },
-          )
-          .select("id"),
-        "video",
-      );
-      if (albumIds.length) {
-        check(
-          await supabase.from("video_albums").upsert(
-            inserted.flatMap((v) => albumIds.map((album_id) => ({ video_id: v.id, album_id }))),
-            {
-              ignoreDuplicates: true,
-            },
-          ),
-          "album link",
-        );
-      }
-      return inserted.length;
-    },
-  );
+  return runAdmin(recordVideoSchema, input, [TAGS.videos], async ({ assets, publish, albumIds }, sql) => {
+    assets.forEach((a) => assertGenuine(a, "video"));
+    const top = await topPosition(sql, "videos");
+    const rows = assets.map((a, i) => ({
+      public_id: a.public_id,
+      version: a.version,
+      width: a.width ?? null,
+      height: a.height ?? null,
+      duration: a.duration ?? null,
+      format: a.format ?? null,
+      bytes: a.bytes ?? null,
+      original_filename: a.original_filename ?? null,
+      title: a.original_filename?.replace(/[-_]+/g, " ").slice(0, 200) ?? null,
+      published: publish,
+      position: top - (assets.length - i),
+    }));
+    const inserted = await sql<{ id: string }[]>`
+        insert into public.videos ${sql(rows)}
+        on conflict (public_id) do update set
+          version = excluded.version, width = excluded.width, height = excluded.height,
+          duration = excluded.duration, format = excluded.format, bytes = excluded.bytes
+        returning id`;
+    if (albumIds.length) {
+      const links = inserted.flatMap((v) => albumIds.map((album_id) => ({ video_id: v.id, album_id })));
+      await sql`insert into public.video_albums ${sql(links)} on conflict do nothing`;
+    }
+    return inserted.length;
+  });
 }
 
 const updateVideoSchema = z.object({
@@ -375,32 +321,16 @@ const updateVideoSchema = z.object({
 });
 
 export async function updateVideo(input: z.input<typeof updateVideoSchema>) {
-  return runAdmin(updateVideoSchema, input, [TAGS.videos, TAGS.timeline], async (v, supabase) => {
-    if (v.isFeatured) {
-      check(await supabase.from("videos").update({ is_featured: false }).neq("id", v.id), "video");
-    }
-    check(
-      await supabase
-        .from("videos")
-        .update({
-          title: v.title,
-          caption: v.caption,
-          recorded_on: v.recordedOn,
-          published: v.published,
-          is_featured: v.isFeatured,
-          poster_offset: v.posterOffset,
-        })
-        .eq("id", v.id),
-      "video",
-    );
-    check(await supabase.from("video_albums").delete().eq("video_id", v.id), "album link");
+  return runAdmin(updateVideoSchema, input, [TAGS.videos, TAGS.timeline], async (v, sql) => {
+    if (v.isFeatured) await sql`update public.videos set is_featured = false where id <> ${v.id}`;
+    await sql`
+      update public.videos set
+        title = ${v.title}, caption = ${v.caption}, recorded_on = ${v.recordedOn}, published = ${v.published},
+        is_featured = ${v.isFeatured}, poster_offset = ${v.posterOffset}
+      where id = ${v.id}`;
+    await sql`delete from public.video_albums where video_id = ${v.id}`;
     if (v.albumIds.length) {
-      check(
-        await supabase
-          .from("video_albums")
-          .insert(v.albumIds.map((album_id) => ({ video_id: v.id, album_id }))),
-        "album link",
-      );
+      await sql`insert into public.video_albums ${sql(v.albumIds.map((album_id) => ({ video_id: v.id, album_id })))}`;
     }
   });
 }
@@ -409,23 +339,22 @@ const posterSchema = z.object({ id: uuid, asset: uploadedAsset.nullable() });
 
 /** Set a custom thumbnail image for a video, or clear it (null). */
 export async function setVideoPoster(input: z.input<typeof posterSchema>) {
-  return runAdmin(posterSchema, input, [TAGS.videos, TAGS.timeline], async ({ id, asset }, supabase) => {
-    if (asset) assertGenuine(asset, "poster");
-    const old = check(
-      await supabase.from("videos").select("poster_public_id").eq("id", id).single(),
-      "video",
-    );
-    check(
-      await supabase
-        .from("videos")
-        .update({ poster_public_id: asset?.public_id ?? null, poster_version: asset?.version ?? null })
-        .eq("id", id),
-      "video",
-    );
-    if (old.poster_public_id && old.poster_public_id !== asset?.public_id) {
-      await destroyAsset(old.poster_public_id, "image");
-    }
-  });
+  return runAdmin(
+    posterSchema,
+    input,
+    [TAGS.videos, TAGS.timeline],
+    async ({ id, asset }, sql, afterCommit) => {
+      if (asset) assertGenuine(asset, "poster");
+      const [old] = await sql<{ poster_public_id: string | null }[]>`
+      select poster_public_id from public.videos where id = ${id}`;
+      if (!old) throw new UserFacingError("That video no longer exists.");
+      await sql`
+      update public.videos set poster_public_id = ${asset?.public_id ?? null}, poster_version = ${asset?.version ?? null}
+      where id = ${id}`;
+      const previous = old.poster_public_id;
+      if (previous && previous !== asset?.public_id) afterCommit(() => destroyAsset(previous, "image"));
+    },
+  );
 }
 
 const replaceVideoSchema = z.object({ id: uuid, asset: uploadedAsset });
@@ -435,68 +364,47 @@ export async function replaceVideo(input: z.input<typeof replaceVideoSchema>) {
     replaceVideoSchema,
     input,
     [TAGS.videos, TAGS.timeline],
-    async ({ id, asset }, supabase) => {
+    async ({ id, asset }, sql, afterCommit) => {
       assertGenuine(asset, "video");
-      const old = check(await supabase.from("videos").select("public_id").eq("id", id).single(), "video");
-      check(
-        await supabase
-          .from("videos")
-          .update({
-            public_id: asset.public_id,
-            version: asset.version,
-            width: asset.width ?? null,
-            height: asset.height ?? null,
-            duration: asset.duration ?? null,
-            format: asset.format ?? null,
-            bytes: asset.bytes ?? null,
-            original_filename: asset.original_filename ?? null,
-          })
-          .eq("id", id),
-        "video",
-      );
-      if (old.public_id !== asset.public_id) await destroyAsset(old.public_id, "video");
+      const [old] = await sql<{ public_id: string }[]>`select public_id from public.videos where id = ${id}`;
+      if (!old) throw new UserFacingError("That video no longer exists.");
+      await sql`
+        update public.videos set
+          public_id = ${asset.public_id}, version = ${asset.version}, width = ${asset.width ?? null},
+          height = ${asset.height ?? null}, duration = ${asset.duration ?? null}, format = ${asset.format ?? null},
+          bytes = ${asset.bytes ?? null}, original_filename = ${asset.original_filename ?? null}
+        where id = ${id}`;
+      if (old.public_id !== asset.public_id) afterCommit(() => destroyAsset(old.public_id, "video"));
     },
   );
 }
 
 export async function deleteVideo(id: string) {
-  return runAdmin(uuid, id, [TAGS.videos, TAGS.timeline], async (videoId, supabase) => {
-    const row = check(
-      await supabase.from("videos").select("public_id, poster_public_id").eq("id", videoId).single(),
-      "video",
-    );
-    check(await supabase.from("videos").delete().eq("id", videoId), "video");
-    await destroyAsset(row.public_id, "video");
-    if (row.poster_public_id) await destroyAsset(row.poster_public_id, "image");
+  return runAdmin(uuid, id, [TAGS.videos, TAGS.timeline], async (videoId, sql, afterCommit) => {
+    const [row] = await sql<{ public_id: string; poster_public_id: string | null }[]>`
+      delete from public.videos where id = ${videoId} returning public_id, poster_public_id`;
+    if (!row) return;
+    afterCommit(async () => {
+      await destroyAsset(row.public_id, "video");
+      if (row.poster_public_id) await destroyAsset(row.poster_public_id, "image");
+    });
   });
 }
 
 const moveVideoSchema = z.object({ id: uuid, direction: z.enum(["up", "down"]) });
 
 export async function moveVideo(input: z.input<typeof moveVideoSchema>) {
-  return runAdmin(moveVideoSchema, input, [TAGS.videos], async ({ id, direction }, supabase) => {
-    const rows = check(
-      await supabase
-        .from("videos")
-        .select("id, position")
-        .order("position")
-        .order("created_at", { ascending: false }),
-      "videos",
-    );
+  return runAdmin(moveVideoSchema, input, [TAGS.videos], async ({ id, direction }, sql) => {
+    const rows = await sql<{ id: string }[]>`
+      select id from public.videos order by position, created_at desc`;
     const i = rows.findIndex((r) => r.id === id);
     const j = direction === "up" ? i - 1 : i + 1;
     if (i < 0 || j < 0 || j >= rows.length) return;
     // Renumber so swapping is always well-defined, even after ties.
     const order = rows.map((r) => r.id);
     [order[i], order[j]] = [order[j], order[i]];
-    await Promise.all(
-      order.map((vid, n) =>
-        supabase
-          .from("videos")
-          .update({ position: n })
-          .eq("id", vid)
-          .then((r) => check(r, "video")),
-      ),
-    );
+    for (const [n, vid] of order.entries()) {
+      await sql`update public.videos set position = ${n} where id = ${vid}`;
+    }
   });
 }

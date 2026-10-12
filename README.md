@@ -15,7 +15,7 @@ dashboard at `/admin` where everything can be changed without touching code.
 
 1. [What’s inside](#whats-inside)
 2. [Technology](#technology)
-3. [Setup guide](#setup-guide) — Supabase, Cloudinary, running locally
+3. [Setup guide](#setup-guide) — PostgreSQL, Cloudinary, running locally
 4. [Deploying to Vercel](#deploying-to-vercel)
 5. [Using the dashboard](#using-the-dashboard)
 6. [How it works](#how-it-works) — security, performance, media
@@ -42,17 +42,18 @@ skip-link and keyboard navigation, reduced-motion support everywhere, and a soft
 
 ## Technology
 
-| Piece      | Used for                                                      | Version                             |
-| ---------- | ------------------------------------------------------------- | ----------------------------------- |
-| Next.js    | App Router, Cache Components, Server Actions, `proxy.ts`      | 16.4                                |
-| React      | UI                                                            | 19.3                                |
-| TypeScript | Types                                                         | 5.x                                 |
-| Tailwind   | Styling (`@theme` design tokens in `src/app/globals.css`)     | 4.x                                 |
-| Motion     | Animations (`motion/react`, formerly Framer Motion)           | 14.x                                |
-| Supabase   | Postgres database, row level security, email/password sign-in | supabase-js 2.x, @supabase/ssr 0.12 |
-| Cloudinary | Storing originals, optimised image & video delivery           | cloudinary 2.x (server SDK)         |
-| Zod        | Validating every input on the server                          | 4.x                                 |
-| Vercel     | Hosting                                                       | —                                   |
+| Piece      | Used for                                                   | Version                            |
+| ---------- | ---------------------------------------------------------- | ---------------------------------- |
+| Next.js    | App Router, Cache Components, Server Actions, `proxy.ts`   | 16.4                               |
+| React      | UI                                                         | 19.3                               |
+| TypeScript | Types                                                      | 5.x                                |
+| Tailwind   | Styling (`@theme` design tokens in `src/app/globals.css`)  | 4.x                                |
+| Motion     | Animations (`motion/react`, formerly Framer Motion)        | 14.x                               |
+| PostgreSQL | All text, albums, captions, letters, settings and sign-ins | any PostgreSQL 13+, `postgres` 3.x |
+| Cloudinary | Storing originals, optimised image & video delivery        | cloudinary 2.x (server SDK)        |
+| Zod        | Validating every input on the server                       | 4.x                                |
+| Supabase   | _Optional_ — sign in with Supabase Auth instead            | @supabase/ssr 0.12                 |
+| Vercel     | Hosting                                                    | —                                  |
 
 Node.js **20.9 or newer** is required.
 
@@ -60,35 +61,50 @@ Node.js **20.9 or newer** is required.
 
 ## Setup guide
 
-You’ll need free accounts at [Supabase](https://supabase.com), [Cloudinary](https://cloudinary.com) and
+You need a **PostgreSQL database**, a free [Cloudinary](https://cloudinary.com) account, and (to go live)
 [Vercel](https://vercel.com). Allow about 20 minutes.
 
-### 1. Supabase (database and sign-in)
+### 1. PostgreSQL (database and sign-in)
 
-1. **Create a project** at <https://supabase.com/dashboard>. For visitors in India choose the **Mumbai
-   (ap-south-1)** region. Save the database password somewhere safe.
-2. **Create the tables.** Open **SQL Editor → New query**, paste the whole contents of
-   [`supabase/migrations/20261012000000_initial_schema.sql`](supabase/migrations/20261012000000_initial_schema.sql)
-   and press **Run**. This creates every table, the security policies, the default albums, the six story chapters,
-   the seven “little things” cards and the one milestone we know — the day Jojo was born.
-   _(If you use the Supabase CLI instead: `supabase link` then `supabase db push`.)_
-3. **Turn off public sign-ups.** **Authentication → Sign In / Providers → Email**: keep Email enabled, and turn
-   **off** “Allow new users to sign up”. (Even if someone did sign up, they couldn’t change anything — but there’s
-   no reason to allow it.)
-4. **Create your account.** **Authentication → Users → Add user → Create new user**. Enter your email and a strong
-   password, and tick **Auto confirm user**.
-5. **Make yourself an administrator.** Back in the **SQL Editor**, run (with your email):
+**a) Get a database.** Any PostgreSQL 13 or newer works. For a site that family can visit online, use a hosted one —
+for example [Neon](https://neon.tech) (free tier; pick the region closest to India — Mumbai if offered, otherwise Singapore),
+[Railway](https://railway.app), Vercel Postgres, or the database of a Supabase project. Create a database and copy its
+**connection string** — it looks like:
 
-   ```sql
-   insert into public.admins (user_id)
-   select id from auth.users where email = 'you@example.com';
-   ```
+```
+postgresql://user:password@host/dbname?sslmode=require
+```
 
-   Repeat for any other family member who should have access.
+For testing on your own computer you can also use a local PostgreSQL, e.g.
+`postgresql://postgres:your-password@localhost:5432/jojo` (create the empty `jojo` database first, for example with
+pgAdmin, or `createdb -U postgres jojo`).
 
-6. **Copy your keys.** **Project Settings → API Keys** (or **API**): you need the **Project URL** and the
-   **publishable key** (`sb_publishable_…`; the legacy `anon` key also works). You do **not** need the secret /
-   service-role key — don’t add it anywhere.
+**b) Add it to `.env.local`.** In the project folder:
+
+```bash
+cp .env.example .env.local        # Windows PowerShell: copy .env.example .env.local
+```
+
+Open `.env.local` and set `DATABASE_URL` to your connection string.
+
+**c) Create the tables.**
+
+```bash
+npm install
+npm run db:migrate
+```
+
+This creates every table plus the default albums, the six story chapters, the seven “little things” cards and the
+one milestone we know — the day Jojo was born. It’s safe to run again; it only applies what’s new.
+
+**d) Create your dashboard login.**
+
+```bash
+npm run db:create-admin
+```
+
+Type your email and a password (at least 10 characters; it’s hidden as you type). Run it again for each family
+member who should have access — or with an existing email to change its password.
 
 ### 2. Cloudinary (photos and videos)
 
@@ -101,27 +117,39 @@ You’ll need free accounts at [Supabase](https://supabase.com), [Cloudinary](ht
 
 ### 3. Run it on your computer
 
+Add the Cloudinary values from step 2 to `.env.local`, then:
+
 ```bash
-npm install
-cp .env.example .env.local   # then fill in the values from steps 1–2
 npm run dev
 ```
 
 Open <http://localhost:3000> for the site and <http://localhost:3000/admin> for the dashboard.
 
-Without any keys the site still runs and shows its placeholders, so you can look around first.
+Without a database the site still runs and shows its placeholders, so you can look around first.
 
-| Variable                               | Where it comes from                         | Secret?               |
-| -------------------------------------- | ------------------------------------------- | --------------------- |
-| `NEXT_PUBLIC_SITE_URL`                 | Your domain, e.g. `https://foreverjojo.com` | no                    |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase → Project Settings → API           | no                    |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API Keys      | no (protected by RLS) |
-| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`    | Cloudinary dashboard                        | no                    |
-| `CLOUDINARY_API_KEY`                   | Cloudinary → Settings → API Keys            | **yes**               |
-| `CLOUDINARY_API_SECRET`                | Cloudinary → Settings → API Keys            | **yes**               |
-| `CLOUDINARY_FOLDER` _(optional)_       | Folder name, default `forever-jojo`         | no                    |
-| `NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB`      | Your Cloudinary plan’s image limit          | no                    |
-| `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB`      | Your Cloudinary plan’s video limit          | no                    |
+| Variable                            | Where it comes from                         | Secret? |
+| ----------------------------------- | ------------------------------------------- | ------- |
+| `NEXT_PUBLIC_SITE_URL`              | Your domain, e.g. `https://foreverjojo.com` | no      |
+| `DATABASE_URL`                      | Your PostgreSQL connection string           | **yes** |
+| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | Cloudinary dashboard                        | no      |
+| `CLOUDINARY_API_KEY`                | Cloudinary → Settings → API Keys            | **yes** |
+| `CLOUDINARY_API_SECRET`             | Cloudinary → Settings → API Keys            | **yes** |
+| `CLOUDINARY_FOLDER` _(optional)_    | Folder name, default `forever-jojo`         | no      |
+| `NEXT_PUBLIC_MAX_IMAGE_UPLOAD_MB`   | Your Cloudinary plan’s image limit          | no      |
+| `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_MB`   | Your Cloudinary plan’s video limit          | no      |
+| `DATABASE_POOL_SIZE` _(optional)_   | Connections per server instance, default 5  | no      |
+
+### Optional: sign in with Supabase Auth
+
+The built-in sign-in is all you need. If you’d rather manage logins with Supabase Auth, set
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Supabase → Project Settings → API Keys), create
+the user in Supabase → Authentication → Users, turn off public sign-ups there, and add the same email to the database:
+
+```sql
+insert into public.admin_users (email) values ('you@example.com');
+```
+
+Content is still stored in your `DATABASE_URL` database either way (which can be the Supabase project’s own database).
 
 ---
 
@@ -130,13 +158,16 @@ Without any keys the site still runs and shows its placeholders, so you can look
 1. Push this repository to GitHub.
 2. In Vercel: **Add New → Project**, import the repository. The framework (Next.js) is detected automatically.
 3. Under **Environment Variables**, add every variable from the table above (use your real domain for
-   `NEXT_PUBLIC_SITE_URL`). Apply them to **Production** and **Preview**.
+   `NEXT_PUBLIC_SITE_URL`, and your **hosted** database for `DATABASE_URL`). Apply them to **Production** and
+   **Preview**.
 4. Click **Deploy**.
-5. In Supabase → **Authentication → URL Configuration**, set **Site URL** to your Vercel domain.
-6. Optional: add your own domain in Vercel → **Settings → Domains**, then update `NEXT_PUBLIC_SITE_URL` and redeploy.
+5. Optional: add your own domain in Vercel → **Settings → Domains**, then update `NEXT_PUBLIC_SITE_URL` and redeploy.
 
-`vercel.json` runs server functions in **Mumbai (`bom1`)**, next to a Mumbai Supabase project. If your Supabase project
-is in another region, change `regions` to the nearest Vercel region.
+Run `npm run db:migrate` (with `DATABASE_URL` pointing at the hosted database) whenever you update to a version with
+new files in `db/migrations`.
+
+`vercel.json` runs server functions in **Mumbai (`bom1`)**. Keep the database in a nearby region (Mumbai or
+Singapore), or change `regions` to the Vercel region closest to your database.
 
 After changing environment variables in Vercel, **redeploy** for them to take effect.
 
@@ -175,16 +206,20 @@ homepage hero.
 
 ### Security
 
-- **Database rules (RLS) are the real lock.** Visitors can only read _published_ content, and can only insert letters
-  as _pending_. Every write requires a signed-in user listed in `public.admins` — checked by the database itself
-  (`public.is_admin()`), so it holds even if someone calls Supabase directly with the public key.
-- **Every admin page and server action re-checks the user.** `proxy.ts` refreshes the session and redirects signed-out
-  visitors early, but authorisation happens in `src/lib/auth.ts` (`requireAdmin` / `assertAdmin`): the JWT is verified
-  with `getClaims()` and admin membership is looked up in the database.
-- **All input is validated with Zod** on the server (`src/app/admin/actions/*`).
-- **Secrets never reach the browser.** The Cloudinary API secret is only used server-side (`src/lib/cloudinary/server.ts`,
-  guarded by `server-only`). Browsers upload directly to Cloudinary with a short-lived signature for exactly the
+- **Only the server talks to the database.** Visitors’ browsers never get database access; public pages only ever
+  query _published_ content, and visitors can only create letters as _pending_.
+- **Every admin page and server action re-checks the session** (`src/lib/auth.ts`: `requireAdmin` / `assertAdmin`)
+  against the database — `proxy.ts` only redirects signed-out visitors early for convenience.
+- **Sign-in:** passwords are stored as salted **scrypt** hashes; failed attempts take the same time whether or not the
+  email exists. A successful sign-in sets a random 256-bit token in an `httpOnly`, `SameSite=Lax` cookie (HTTPS-only
+  in production); only its SHA-256 hash is stored, and signing out deletes it. Sessions last 30 days.
+- **All input is validated with Zod** on the server (`src/app/admin/actions/*`), every query is parameterised, and
+  each change runs in a single transaction.
+- **Secrets never reach the browser.** `DATABASE_URL` and the Cloudinary API secret are only used server-side
+  (guarded by `server-only`). Browsers upload directly to Cloudinary with a short-lived signature for exactly the
   allowed parameters, and the server **verifies Cloudinary’s response signature** before saving anything.
+- Row level security is enabled (with no policies) on every table, so if the database is hosted on Supabase its
+  automatic public API can’t read or change anything.
 - The site sends `X-Frame-Options`, `nosniff`, a strict referrer policy and `X-Robots-Tag: noindex` on `/admin`;
   `robots.txt` disallows `/admin` and `/api/`.
 - The public letter form has a hidden spam trap and a minimum-time check.
@@ -225,26 +260,33 @@ src/
     admin/                                                          Dashboard UI
   lib/
     data/public.ts     Cached public readers (+ placeholders when not configured)
-    data/admin.ts      Dashboard readers (run as the signed-in user)
+    data/admin.ts      Dashboard readers (admin-checked)
+    db/                PostgreSQL connection
     cloudinary/        URL builders (browser-safe) and signing/deleting (server-only)
-    supabase/          Public (cookie-less) and request (cookie) clients
-    auth.ts            requireAdmin / assertAdmin
+    supabase/          Optional Supabase Auth client
+    auth.ts            Sign-in, sessions, requireAdmin / assertAdmin
+    password.ts        scrypt password hashing
     settings.ts        Editable site text and options, with defaults
-  proxy.ts             Session refresh + early redirect for /admin
-supabase/migrations/   Database schema, RLS policies, default content
+  proxy.ts             Early redirect for /admin (and Supabase session refresh)
+db/migrations/         Database schema and default content (npm run db:migrate)
+scripts/               db-migrate and create-admin commands
 ```
 
 ## Maintenance & troubleshooting
 
 ```bash
-npm run check   # lint + type check + formatting
-npm run build   # production build
+npm run check            # lint + type check + formatting
+npm run build            # production build
+npm run db:migrate       # apply new database migrations
+npm run db:create-admin  # add an admin or change a password
 ```
 
 | Problem                                            | Fix                                                                                                 |
 | -------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| “This account isn’t an administrator”              | Run the `insert into public.admins …` SQL from setup step 1.5 for that email.                       |
-| Sign-in page says Supabase isn’t configured        | Add the `NEXT_PUBLIC_SUPABASE_*` variables and redeploy.                                            |
+| Sign-in page says the database isn’t connected     | Set `DATABASE_URL`, run `npm run db:migrate`, then restart (`npm run dev`) or redeploy.             |
+| “That email and password didn’t work”              | Run `npm run db:create-admin` with that email to set a new password.                                |
+| Forgot the password                                | Same: `npm run db:create-admin` resets it and signs out old sessions.                               |
+| `db:migrate` can’t connect                         | Check the connection string; hosted databases usually need `?sslmode=require` at the end.           |
 | “Cloudinary isn’t configured yet” in the dashboard | Add the three `CLOUDINARY_*` / cloud-name variables and redeploy.                                   |
 | Upload says the file is too large                  | Your Cloudinary plan limit — compress the file, or upgrade and raise `NEXT_PUBLIC_MAX_*_UPLOAD_MB`. |
 | A photo doesn’t appear on the website              | It’s probably still a **Draft** — open it and switch on **Published**.                              |
@@ -255,7 +297,7 @@ Good to know:
 - **Downloads:** the download button only appears when you allow it, but anyone can still screenshot a photo they can
   see. Keep truly private photos unpublished.
 - **Private letters** are visible only in the dashboard, never on the website.
-- To keep a backup, Supabase offers database backups (paid plans) or `supabase db dump`; Cloudinary keeps every
+- To keep a backup, use your database host’s backups or `pg_dump "$DATABASE_URL" > jojo-backup.sql`; Cloudinary keeps every
   original you upload.
 
 ---

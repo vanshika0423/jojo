@@ -1,40 +1,13 @@
--- Forever Jojo ♾️ — initial schema
+-- Forever Jojo ♾️ — PostgreSQL schema (works on any PostgreSQL 13+)
 --
 -- Security model
---   * Visitors (the `anon` role) can only READ published content.
---   * Visitors may INSERT a letter, which is always stored as `pending`
---     and stays invisible until an admin approves it.
---   * Every other write requires an authenticated user listed in
---     public.admins. Admin rows are only ever created from the SQL editor.
+--   * Only the website's server connects to this database (DATABASE_URL).
+--     Every page and action checks permissions on the server before querying.
+--   * Row level security is switched ON with no policies. The table owner
+--     (your DATABASE_URL user) is unaffected, but if the database is hosted on
+--     Supabase this keeps its automatic public API from exposing any table.
 
-create extension if not exists pg_trgm with schema extensions;
-
--- ---------------------------------------------------------------------------
--- Helpers
--- ---------------------------------------------------------------------------
-
-create table public.admins (
-  user_id uuid primary key references auth.users (id) on delete cascade,
-  created_at timestamptz not null default now()
-);
-
-alter table public.admins enable row level security;
--- No policies: the table is only readable through is_admin() below.
-
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select exists (
-    select 1 from public.admins where user_id = (select auth.uid())
-  );
-$$;
-
-revoke all on function public.is_admin() from public;
-grant execute on function public.is_admin() to anon, authenticated;
+create extension if not exists pg_trgm;
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -46,6 +19,36 @@ begin
   return new;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Administrators and sign-in sessions
+-- ---------------------------------------------------------------------------
+
+create table public.admin_users (
+  id uuid primary key default gen_random_uuid(),
+  email text not null check (email = lower(email) and char_length(email) between 3 and 320),
+  -- scrypt hash, set by `npm run db:create-admin`. Null when the account signs
+  -- in through Supabase Auth instead.
+  password_hash text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index admin_users_email_idx on public.admin_users (email);
+
+create trigger admin_users_updated_at before update on public.admin_users
+  for each row execute function public.set_updated_at();
+
+create table public.admin_sessions (
+  -- SHA-256 of the random token kept in the browser cookie; the token itself
+  -- is never stored.
+  token_hash text primary key,
+  admin_id uuid not null references public.admin_users (id) on delete cascade,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+create index admin_sessions_admin_idx on public.admin_sessions (admin_id);
 
 -- ---------------------------------------------------------------------------
 -- Photos
@@ -76,7 +79,7 @@ create table public.photos (
 create index photos_published_position_idx on public.photos (published, position, created_at desc);
 create index photos_favourite_idx on public.photos (is_favourite) where is_favourite;
 create index photos_tags_idx on public.photos using gin (tags);
-create index photos_caption_trgm_idx on public.photos using gin (caption extensions.gin_trgm_ops);
+create index photos_caption_trgm_idx on public.photos using gin (caption gin_trgm_ops);
 
 create trigger photos_updated_at before update on public.photos
   for each row execute function public.set_updated_at();
@@ -248,9 +251,11 @@ create trigger site_settings_updated_at before update on public.site_settings
   for each row execute function public.set_updated_at();
 
 -- ---------------------------------------------------------------------------
--- Row level security
+-- Lock tables to the server connection (see note at the top)
 -- ---------------------------------------------------------------------------
 
+alter table public.admin_users enable row level security;
+alter table public.admin_sessions enable row level security;
 alter table public.photos enable row level security;
 alter table public.albums enable row level security;
 alter table public.photo_albums enable row level security;
@@ -262,70 +267,6 @@ alter table public.story_sections enable row level security;
 alter table public.little_things enable row level security;
 alter table public.letters enable row level security;
 alter table public.site_settings enable row level security;
-
--- Public reads of published content
-create policy "Published photos are public" on public.photos
-  for select using (published);
-create policy "Published albums are public" on public.albums
-  for select using (published);
-create policy "Album links of published photos are public" on public.photo_albums
-  for select using (
-    exists (select 1 from public.photos p where p.id = photo_id and p.published)
-  );
-create policy "Published videos are public" on public.videos
-  for select using (published);
-create policy "Album links of published videos are public" on public.video_albums
-  for select using (
-    exists (select 1 from public.videos v where v.id = video_id and v.published)
-  );
-create policy "Published timeline events are public" on public.timeline_events
-  for select using (published);
-create policy "Media of published timeline events is public" on public.timeline_event_media
-  for select using (
-    exists (select 1 from public.timeline_events e where e.id = event_id and e.published)
-  );
-create policy "Published story sections are public" on public.story_sections
-  for select using (published);
-create policy "Published little things are public" on public.little_things
-  for select using (published);
-create policy "Approved public letters are public" on public.letters
-  for select using (status = 'approved' and visibility = 'public');
-create policy "Site settings are public" on public.site_settings
-  for select using (true);
-
--- Visitors may submit letters for review, never publish them directly.
-create policy "Anyone can submit a letter for review" on public.letters
-  for insert to anon, authenticated
-  with check (
-    status = 'pending'
-    and written_by_admin = false
-    and approved_at is null
-    and photo_id is null
-  );
-
--- Admins can do everything
-create policy "Admins manage photos" on public.photos
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage albums" on public.albums
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage photo albums" on public.photo_albums
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage videos" on public.videos
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage video albums" on public.video_albums
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage timeline" on public.timeline_events
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage timeline media" on public.timeline_event_media
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage story" on public.story_sections
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage little things" on public.little_things
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage letters" on public.letters
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
-create policy "Admins manage settings" on public.site_settings
-  for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- ---------------------------------------------------------------------------
 -- Default content (structure only — no invented stories)
