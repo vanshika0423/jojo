@@ -50,9 +50,7 @@ export type Video = {
 
 export type DatePrecision = "day" | "month" | "year";
 
-export type TimelineMedia =
-  | { kind: "photo"; photo: Photo }
-  | { kind: "video"; video: Video };
+export type TimelineMedia = { kind: "photo"; photo: Photo } | { kind: "video"; video: Video };
 
 export type TimelineEvent = {
   id: string;
@@ -101,8 +99,7 @@ export type Letter = {
 };
 
 export type ActionResult<T = undefined> =
-  | ({ ok: true } & (T extends undefined ? object : { data: T }))
-  | { ok: false; error: string };
+  ({ ok: true } & (T extends undefined ? object : { data: T })) | { ok: false; error: string };
 
 export type AdminPhoto = Photo & {
   albumIds: string[];

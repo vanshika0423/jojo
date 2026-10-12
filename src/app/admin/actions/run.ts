@@ -26,7 +26,10 @@ export async function runAdmin<S extends z.ZodType, T = undefined>(
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       const field = issue?.path.join(".");
-      return { ok: false, error: `Please check ${field ? `“${field}”` : "the form"}: ${issue?.message ?? "invalid value"}` };
+      return {
+        ok: false,
+        error: `Please check ${field ? `“${field}”` : "the form"}: ${issue?.message ?? "invalid value"}`,
+      };
     }
     const supabase = await getServerClient();
     const data = await work(parsed.data, supabase);

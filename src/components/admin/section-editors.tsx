@@ -64,23 +64,55 @@ function ItemList({ kind, items }: { kind: Kind; items: Array<StorySection | Lit
           <Card key={item.id} className="!p-0">
             <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
               <div className="flex flex-col">
-                <button type="button" aria-label="Move up" disabled={i === 0 || pending} className="px-2 text-cocoa/60 disabled:opacity-20" onClick={() => startTransition(async () => void report(await move({ id: item.id, direction: "up" }), "Order updated"))}>▲</button>
-                <button type="button" aria-label="Move down" disabled={i === items.length - 1 || pending} className="px-2 text-cocoa/60 disabled:opacity-20" onClick={() => startTransition(async () => void report(await move({ id: item.id, direction: "down" }), "Order updated"))}>▼</button>
+                <button
+                  type="button"
+                  aria-label="Move up"
+                  disabled={i === 0 || pending}
+                  className="text-cocoa/60 px-2 disabled:opacity-20"
+                  onClick={() =>
+                    startTransition(
+                      async () => void report(await move({ id: item.id, direction: "up" }), "Order updated"),
+                    )
+                  }
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  aria-label="Move down"
+                  disabled={i === items.length - 1 || pending}
+                  className="text-cocoa/60 px-2 disabled:opacity-20"
+                  onClick={() =>
+                    startTransition(
+                      async () =>
+                        void report(await move({ id: item.id, direction: "down" }), "Order updated"),
+                    )
+                  }
+                >
+                  ▼
+                </button>
               </div>
-              <button type="button" className="min-w-0 flex-1 text-left" aria-expanded={open} onClick={() => setOpenId(open ? null : item.id)}>
-                <span className="font-serif text-xl text-cocoa">
+              <button
+                type="button"
+                className="min-w-0 flex-1 text-left"
+                aria-expanded={open}
+                onClick={() => setOpenId(open ? null : item.id)}
+              >
+                <span className="text-cocoa font-serif text-xl">
                   {"emoji" in item && item.emoji ? `${item.emoji} ` : ""}
                   {item.title}
                 </span>
-                <span className="block truncate text-xs text-taupe-dark">
+                <span className="text-taupe-dark block truncate text-xs">
                   {item.body ? item.body.slice(0, 120) : "✎ Not written yet"}
                 </span>
               </button>
               <StatusPill published={item.published} />
-              <span aria-hidden className="text-cocoa/50">{open ? "−" : "+"}</span>
+              <span aria-hidden className="text-cocoa/50">
+                {open ? "−" : "+"}
+              </span>
             </div>
             {open ? (
-              <div className="border-t border-cream px-4 py-5 sm:px-5">
+              <div className="border-cream border-t px-4 py-5 sm:px-5">
                 <ItemForm kind={kind} item={item} onDone={() => setOpenId(null)} />
               </div>
             ) : null}
@@ -126,18 +158,54 @@ function ItemForm({ kind, item, onDone }: { kind: Kind; item: Item | null; onDon
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
-        <Field label="Title">{(id) => <input id={id} className="field" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />}</Field>
+        <Field label="Title">
+          {(id) => (
+            <input
+              id={id}
+              className="field"
+              value={title}
+              maxLength={200}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          )}
+        </Field>
         {kind === "little" ? (
-          <Field label="Emoji">{(id) => <input id={id} className="field text-center text-xl" value={emoji} maxLength={16} onChange={(e) => setEmoji(e.target.value)} />}</Field>
+          <Field label="Emoji">
+            {(id) => (
+              <input
+                id={id}
+                className="field text-center text-xl"
+                value={emoji}
+                maxLength={16}
+                onChange={(e) => setEmoji(e.target.value)}
+              />
+            )}
+          </Field>
         ) : null}
       </div>
       <Field label={c.bodyLabel} hint={c.bodyHint}>
-        {(id) => <textarea id={id} rows={c.rows} className="field font-serif text-lg leading-relaxed" value={body} onChange={(e) => setBody(e.target.value)} />}
+        {(id) => (
+          <textarea
+            id={id}
+            rows={c.rows}
+            className="field font-serif text-lg leading-relaxed"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+          />
+        )}
       </Field>
       <PhotoField label={c.photoLabel} photo={photo} onChange={setPhoto} />
       <Toggle label="Show on the website" checked={published} onChange={setPublished} />
       <div className="flex items-center justify-between gap-3">
-        {item?.id ? <ConfirmButton onConfirm={remove} disabled={pending}>Delete</ConfirmButton> : <button type="button" className="btn btn-ghost" onClick={onDone}>Cancel</button>}
+        {item?.id ? (
+          <ConfirmButton onConfirm={remove} disabled={pending}>
+            Delete
+          </ConfirmButton>
+        ) : (
+          <button type="button" className="btn btn-ghost" onClick={onDone}>
+            Cancel
+          </button>
+        )}
         <button type="button" className="btn btn-primary" onClick={save} disabled={pending || !title.trim()}>
           {pending ? "Saving…" : "Save"}
         </button>

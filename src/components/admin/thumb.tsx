@@ -23,12 +23,21 @@ export function Thumb({
         ? videoPosterUrl(video, size)
         : null;
   return (
-    <span className={cn("relative block overflow-hidden bg-cream", className)}>
+    <span className={cn("bg-cream relative block overflow-hidden", className)}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element -- tiny Cloudinary thumbnail
-        <img src={src} alt={photo?.caption ?? ""} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+        <img
+          src={src}
+          alt={photo?.caption ?? ""}
+          loading="lazy"
+          decoding="async"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
       ) : (
-        <span aria-hidden className="absolute inset-0 flex items-center justify-center font-serif text-2xl text-taupe">
+        <span
+          aria-hidden
+          className="text-taupe absolute inset-0 flex items-center justify-center font-serif text-2xl"
+        >
           ∞
         </span>
       )}

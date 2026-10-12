@@ -8,7 +8,8 @@ import { GALLERY_PAGE_SIZE } from "@/lib/gallery";
 
 export const metadata: Metadata = {
   title: "A Thousand Little Moments",
-  description: "Photographs of Jojo — puppy days, family moments, adventures, sleepy afternoons and everyday magic.",
+  description:
+    "Photographs of Jojo — puppy days, family moments, adventures, sleepy afternoons and everyday magic.",
   alternates: { canonical: "/memories" },
 };
 

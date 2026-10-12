@@ -36,25 +36,28 @@ export default async function LittleThingsPage() {
           >
             {thing.photo ? (
               <div className="photo-zoom relative aspect-[16/10] overflow-hidden">
-                <PhotoFrame photo={thing.photo} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" />
+                <PhotoFrame
+                  photo={thing.photo}
+                  sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                />
               </div>
             ) : null}
             <div className="flex flex-1 flex-col p-7 sm:p-8">
               <span
                 aria-hidden
-                className="inline-block text-4xl transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110 motion-reduce:transform-none"
+                className="inline-block text-4xl transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-6 motion-reduce:transform-none"
               >
                 {thing.emoji ?? "🐾"}
               </span>
-              <h2 className="mt-5 text-3xl text-cocoa">{thing.title}</h2>
+              <h2 className="text-cocoa mt-5 text-3xl">{thing.title}</h2>
               {thing.body ? (
-                <div className="mt-3 space-y-3 leading-relaxed text-cocoa/80">
+                <div className="text-cocoa/80 mt-3 space-y-3 leading-relaxed">
                   {paragraphs(thing.body).map((p, j) => (
                     <p key={j}>{p}</p>
                   ))}
                 </div>
               ) : (
-                <p className="mt-3 font-serif text-lg italic text-taupe-dark">
+                <p className="text-taupe-dark mt-3 font-serif text-lg italic">
                   ✎ Waiting to be filled in from the admin dashboard
                 </p>
               )}

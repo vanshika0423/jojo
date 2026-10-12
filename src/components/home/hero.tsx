@@ -22,7 +22,7 @@ export function Hero({ hero, media }: { hero: HeroSettings; media: React.ReactNo
     <section
       ref={ref}
       aria-label="Jojo"
-      className="relative flex h-[100svh] min-h-[560px] items-end overflow-hidden bg-cocoa-deep text-ivory"
+      className="bg-cocoa-deep text-ivory relative flex h-[100svh] min-h-[560px] items-end overflow-hidden"
     >
       <motion.div
         className="absolute inset-0"
@@ -35,7 +35,7 @@ export function Hero({ hero, media }: { hero: HeroSettings; media: React.ReactNo
       </motion.div>
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-t from-cocoa-deep/85 via-cocoa-deep/25 to-cocoa-deep/35"
+        className="from-cocoa-deep/85 via-cocoa-deep/25 to-cocoa-deep/35 absolute inset-0 bg-gradient-to-t"
       />
 
       <motion.div
@@ -51,7 +51,7 @@ export function Hero({ hero, media }: { hero: HeroSettings; media: React.ReactNo
           <InfinityText text={hero.title} />
         </motion.h1>
         <motion.p
-          className="mt-4 text-sm uppercase tracking-[0.3em] text-ivory/85 sm:text-base"
+          className="text-ivory/85 mt-4 text-sm tracking-[0.3em] uppercase sm:text-base"
           initial={reduce ? false : { opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.2, delay: 0.75, ease }}
@@ -60,7 +60,7 @@ export function Hero({ hero, media }: { hero: HeroSettings; media: React.ReactNo
         </motion.p>
         {hero.tagline ? (
           <motion.p
-            className="mt-6 max-w-xl font-serif text-2xl italic leading-snug text-ivory/90 sm:text-3xl"
+            className="text-ivory/90 mt-6 max-w-xl font-serif text-2xl leading-snug italic sm:text-3xl"
             initial={reduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.2, delay: 1, ease }}
@@ -76,7 +76,7 @@ export function Hero({ hero, media }: { hero: HeroSettings; media: React.ReactNo
         >
           <a
             href="#his-world"
-            className="inline-flex items-center gap-3 rounded-full border border-ivory/50 bg-ivory/10 px-6 py-3 text-sm tracking-wide backdrop-blur-sm transition-colors hover:bg-ivory hover:text-cocoa"
+            className="border-ivory/50 bg-ivory/10 hover:bg-ivory hover:text-cocoa inline-flex items-center gap-3 rounded-full border px-6 py-3 text-sm tracking-wide backdrop-blur-sm transition-colors"
           >
             {hero.cta}
             <span aria-hidden>→</span>
@@ -87,12 +87,12 @@ export function Hero({ hero, media }: { hero: HeroSettings; media: React.ReactNo
       <a
         href="#his-world"
         aria-label="Scroll to explore"
-        className="absolute bottom-6 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 text-[0.65rem] uppercase tracking-[0.3em] text-ivory/70 sm:flex"
+        className="text-ivory/70 absolute bottom-6 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 text-[0.65rem] tracking-[0.3em] uppercase sm:flex"
       >
         Scroll
-        <span className="relative block h-10 w-px overflow-hidden bg-ivory/25">
+        <span className="bg-ivory/25 relative block h-10 w-px overflow-hidden">
           <motion.span
-            className="absolute left-0 top-0 block h-4 w-px bg-ivory"
+            className="bg-ivory absolute top-0 left-0 block h-4 w-px"
             animate={reduce ? undefined : { y: [-16, 40] }}
             transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
           />

@@ -3,7 +3,7 @@ export function PlayIcon({ className }: { className?: string }) {
     <span
       aria-hidden
       className={
-        "flex h-16 w-16 items-center justify-center rounded-full bg-ivory/90 text-cocoa shadow-lg backdrop-blur transition-transform duration-500 group-hover:scale-105 " +
+        "bg-ivory/90 text-cocoa flex h-16 w-16 items-center justify-center rounded-full shadow-lg backdrop-blur transition-transform duration-500 group-hover:scale-105 " +
         (className ?? "")
       }
     >

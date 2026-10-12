@@ -7,7 +7,11 @@ import { getPublicClient } from "@/lib/supabase/public";
 export type SubmitLetterState = { status: "idle" | "success" | "error"; message?: string };
 
 const letterSchema = z.object({
-  authorName: z.string().trim().min(1, "Please add your name.").max(100, "Please keep your name under 100 characters."),
+  authorName: z
+    .string()
+    .trim()
+    .min(1, "Please add your name.")
+    .max(100, "Please keep your name under 100 characters."),
   body: z
     .string()
     .trim()

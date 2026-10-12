@@ -10,7 +10,8 @@ export default async function AdminLettersPage() {
   return (
     <>
       <PageTitle title="Letters">
-        Letters sent from the website wait here for your approval. Private letters are never shown on the website.
+        Letters sent from the website wait here for your approval. Private letters are never shown on the
+        website.
       </PageTitle>
       <LettersManager letters={letters} />
     </>

@@ -14,15 +14,15 @@ async function AdminGate({ children }: { children: React.ReactNode }) {
 
 async function SignedInAs() {
   const admin = await requireAdmin();
-  return <p className="truncate text-xs text-taupe-dark">{admin.email}</p>;
+  return <p className="text-taupe-dark truncate text-xs">{admin.email}</p>;
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="lg:flex">
-      <aside className="sticky top-0 z-40 border-b border-taupe/25 bg-ivory/95 px-4 py-3 backdrop-blur lg:h-dvh lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r lg:px-5 lg:py-8">
+      <aside className="border-taupe/25 bg-ivory/95 sticky top-0 z-40 border-b px-4 py-3 backdrop-blur lg:h-dvh lg:w-64 lg:shrink-0 lg:border-r lg:border-b-0 lg:px-5 lg:py-8">
         <div className="mb-3 flex items-center justify-between lg:mb-8 lg:block">
-          <Link href="/admin" className="font-serif text-2xl text-cocoa">
+          <Link href="/admin" className="text-cocoa font-serif text-2xl">
             Forever Jojo <span aria-hidden>∞</span>
           </Link>
           <div className="flex items-center gap-2 lg:mt-4 lg:flex-col lg:items-start">
@@ -32,11 +32,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </Suspense>
             <div className="flex gap-2">
-              <Link href="/" target="_blank" className="rounded-full px-3 py-1.5 text-xs text-cocoa/70 hover:bg-cream">
+              <Link
+                href="/"
+                target="_blank"
+                className="text-cocoa/70 hover:bg-cream rounded-full px-3 py-1.5 text-xs"
+              >
                 View site ↗
               </Link>
               <form action={signOut}>
-                <button type="submit" className="rounded-full px-3 py-1.5 text-xs text-cocoa/70 hover:bg-cream">
+                <button
+                  type="submit"
+                  className="text-cocoa/70 hover:bg-cream rounded-full px-3 py-1.5 text-xs"
+                >
                   Sign out
                 </button>
               </form>

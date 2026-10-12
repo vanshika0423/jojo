@@ -47,26 +47,26 @@ export function VideoGallery({ videos, albums }: { videos: Video[]; albums: Albu
               className="photo-zoom group block w-full text-left"
               aria-label={`Play ${video.title ?? "video"}`}
             >
-              <span className="relative block aspect-video overflow-hidden rounded-[var(--radius-photo)] bg-cream">
+              <span className="bg-cream relative block aspect-video overflow-hidden rounded-[var(--radius-photo)]">
                 <VideoPoster video={video} />
-                <span className="absolute inset-0 bg-cocoa-deep/10 transition-colors duration-500 group-hover:bg-cocoa-deep/25" />
+                <span className="bg-cocoa-deep/10 group-hover:bg-cocoa-deep/25 absolute inset-0 transition-colors duration-500" />
                 <span className="absolute inset-0 flex items-center justify-center">
                   <PlayIcon />
                 </span>
                 {video.duration ? (
-                  <span className="absolute bottom-3 right-3 rounded-full bg-cocoa-deep/70 px-2.5 py-0.5 text-xs text-ivory">
+                  <span className="bg-cocoa-deep/70 text-ivory absolute right-3 bottom-3 rounded-full px-2.5 py-0.5 text-xs">
                     {formatDuration(video.duration)}
                   </span>
                 ) : null}
               </span>
-              <span className="mt-4 block font-serif text-2xl text-cocoa">
+              <span className="text-cocoa mt-4 block font-serif text-2xl">
                 {video.title ?? (video.placeholder ? "A video of Jojo" : "Untitled")}
               </span>
               {video.recordedOn ? (
                 <span className="eyebrow mt-1 block">{formatDate(video.recordedOn)}</span>
               ) : null}
               {video.caption ? (
-                <span className="mt-2 block line-clamp-2 text-sm text-cocoa/70">{video.caption}</span>
+                <span className="text-cocoa/70 mt-2 line-clamp-2 block text-sm">{video.caption}</span>
               ) : null}
             </button>
           </Reveal>

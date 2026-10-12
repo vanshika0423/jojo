@@ -85,7 +85,13 @@ export async function uploadFile(
       total > CHUNK_SIZE
         ? { "X-Unique-Upload-Id": uploadId, "Content-Range": `bytes ${start}-${end - 1}/${total}` }
         : {};
-    result = await postChunk(url, form, headers, (loaded) => onProgress(Math.min(1, (start + loaded) / total)), signal);
+    result = await postChunk(
+      url,
+      form,
+      headers,
+      (loaded) => onProgress(Math.min(1, (start + loaded) / total)),
+      signal,
+    );
     if (total <= CHUNK_SIZE) break;
   }
 

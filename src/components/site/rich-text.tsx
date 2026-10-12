@@ -12,13 +12,15 @@ export function EditablePlaceholder({
   return (
     <p
       className={cn(
-        "rounded-2xl border border-dashed border-taupe/70 bg-cream/40 px-5 py-4 font-serif text-lg italic text-taupe-dark",
+        "border-taupe/70 bg-cream/40 text-taupe-dark rounded-2xl border border-dashed px-5 py-4 font-serif text-lg italic",
         className,
       )}
     >
-      <span aria-hidden className="mr-2 not-italic">✎</span>
+      <span aria-hidden className="mr-2 not-italic">
+        ✎
+      </span>
       {children}
-      <span className="mt-1 block font-sans text-xs not-italic tracking-wide text-taupe-dark/80">
+      <span className="text-taupe-dark/80 mt-1 block font-sans text-xs tracking-wide not-italic">
         Editable placeholder · add these words from the admin dashboard
       </span>
     </p>

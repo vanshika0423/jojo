@@ -2,7 +2,17 @@ import "server-only";
 import { requireAdmin } from "@/lib/auth";
 import { getServerClient } from "@/lib/supabase/server";
 import { defaultSettings, parseSetting, type SiteSettings } from "@/lib/settings";
-import type { Album, AdminPhoto, Photo, Letter, LetterStatus, LittleThing, StorySection, TimelineEvent, Video } from "@/lib/types";
+import type {
+  Album,
+  AdminPhoto,
+  Photo,
+  Letter,
+  LetterStatus,
+  LittleThing,
+  StorySection,
+  TimelineEvent,
+  Video,
+} from "@/lib/types";
 import {
   PHOTO_COLUMNS,
   VIDEO_COLUMNS,
@@ -77,7 +87,10 @@ export async function listAdminPhotos({
     // The inner join only returned the filtered album; fetch the full membership.
     const ids = photos.map((p) => p.id);
     if (ids.length) {
-      const { data: links } = await supabase.from("photo_albums").select("photo_id, album_id").in("photo_id", ids);
+      const { data: links } = await supabase
+        .from("photo_albums")
+        .select("photo_id, album_id")
+        .in("photo_id", ids);
       const byPhoto = new Map<string, string[]>();
       for (const l of links ?? []) byPhoto.set(l.photo_id, [...(byPhoto.get(l.photo_id) ?? []), l.album_id]);
       photos = photos.map((p) => ({ ...p, albumIds: byPhoto.get(p.id) ?? [] }));
@@ -186,18 +199,18 @@ export async function getAdminSettings(): Promise<SiteSettings & { heroPhoto: Ad
 
 export async function getOverview() {
   const supabase = await adminClient();
-  const count = async (table: string, apply?: (q: any) => any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const count = async (table: string, filter?: { column: string; value: string | boolean }) => {
     let q = supabase.from(table).select("id", { count: "exact", head: true });
-    if (apply) q = apply(q);
+    if (filter) q = q.eq(filter.column, filter.value);
     const { count: c } = await q;
     return c ?? 0;
   };
   const [photos, publishedPhotos, videos, events, pendingLetters, albums] = await Promise.all([
     count("photos"),
-    count("photos", (q) => q.eq("published", true)),
+    count("photos", { column: "published", value: true }),
     count("videos"),
     count("timeline_events"),
-    count("letters", (q) => q.eq("status", "pending")),
+    count("letters", { column: "status", value: "pending" }),
     count("albums"),
   ]);
   return { photos, publishedPhotos, videos, events, pendingLetters, albums };

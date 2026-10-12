@@ -27,7 +27,11 @@ export function VideoPlayer({
       poster={videoPosterUrl(video, 1280)}
       aria-label={video.title ?? "A video of Jojo"}
     >
-      <source media="(max-width: 768px)" src={videoUrl(video.publicId, video.version, "small")} type="video/mp4" />
+      <source
+        media="(max-width: 768px)"
+        src={videoUrl(video.publicId, video.version, "small")}
+        type="video/mp4"
+      />
       <source src={videoUrl(video.publicId, video.version, "large")} type="video/mp4" />
       Your browser can’t play this video.
     </video>

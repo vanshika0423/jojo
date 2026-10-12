@@ -4,7 +4,15 @@ import type { LittleThing, Photo, StorySection, TimelineEvent, Video } from "@/l
 // Nothing here describes Jojo — only empty frames waiting to be filled.
 
 const ratios: Array<[number, number]> = [
-  [4, 5], [3, 2], [1, 1], [2, 3], [4, 3], [3, 4], [16, 10], [4, 5], [5, 4],
+  [4, 5],
+  [3, 2],
+  [1, 1],
+  [2, 3],
+  [4, 3],
+  [3, 4],
+  [16, 10],
+  [4, 5],
+  [5, 4],
 ];
 
 export function placeholderPhotos(count: number, offset = 0): Photo[] {

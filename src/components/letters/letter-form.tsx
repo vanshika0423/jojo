@@ -16,8 +16,10 @@ export function LetterForm() {
   if (state.status === "success") {
     return (
       <div role="status" className="paper rounded-3xl px-8 py-12 text-center shadow-sm">
-        <p className="font-serif text-3xl text-cocoa">Thank you <InfinityText text="♾️" /></p>
-        <p className="mt-3 text-cocoa/75">{state.message}</p>
+        <p className="text-cocoa font-serif text-3xl">
+          Thank you <InfinityText text="♾️" />
+        </p>
+        <p className="text-cocoa/75 mt-3">{state.message}</p>
       </div>
     );
   }
@@ -28,7 +30,14 @@ export function LetterForm() {
         <label htmlFor="authorName" className="label">
           Your name
         </label>
-        <input id="authorName" name="authorName" required maxLength={100} className="field" autoComplete="name" />
+        <input
+          id="authorName"
+          name="authorName"
+          required
+          maxLength={100}
+          className="field"
+          autoComplete="name"
+        />
       </div>
       <div>
         <label htmlFor="body" className="label">
@@ -47,7 +56,7 @@ export function LetterForm() {
       </div>
       <fieldset>
         <legend className="label">Who can read it?</legend>
-        <div className="flex flex-col gap-2 text-sm text-cocoa/85 sm:flex-row sm:gap-6">
+        <div className="text-cocoa/85 flex flex-col gap-2 text-sm sm:flex-row sm:gap-6">
           <label className="flex items-center gap-2">
             <input type="radio" name="visibility" value="public" defaultChecked className="accent-cocoa" />
             Share it here, after the family approves it

@@ -90,13 +90,6 @@ export function videoPosterUrl(
   if (video.posterPublicId) {
     return imageUrl(video.posterPublicId, { width, version: video.posterVersion });
   }
-  const offset =
-    video.posterOffset != null ? `so_${Number(video.posterOffset).toFixed(1)}` : "so_auto";
-  return asset(
-    "video",
-    `${offset}/c_limit,f_auto,q_auto,w_${width}`,
-    video.publicId,
-    video.version,
-    ".jpg",
-  );
+  const offset = video.posterOffset != null ? `so_${Number(video.posterOffset).toFixed(1)}` : "so_auto";
+  return asset("video", `${offset}/c_limit,f_auto,q_auto,w_${width}`, video.publicId, video.version, ".jpg");
 }

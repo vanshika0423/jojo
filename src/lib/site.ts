@@ -16,7 +16,4 @@ export const mainNav = [
   { href: "/letters", label: "Letters" },
 ] as const;
 
-export const footerNav = [
-  ...mainNav.slice(1),
-  { href: "/little-things", label: "Little Things" },
-] as const;
+export const footerNav = [...mainNav.slice(1), { href: "/little-things", label: "Little Things" }] as const;

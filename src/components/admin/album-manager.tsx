@@ -26,21 +26,21 @@ export function AlbumManager({ albums }: { albums: AdminAlbum[] }) {
         </button>
       </div>
       <Card>
-        <p className="mb-4 text-sm text-cocoa/70">
-          “All Memories” and “Our Favourites” are always shown in the gallery automatically. Deleting an album never
-          deletes its photos.
+        <p className="text-cocoa/70 mb-4 text-sm">
+          “All Memories” and “Our Favourites” are always shown in the gallery automatically. Deleting an album
+          never deletes its photos.
         </p>
         {albums.length === 0 ? (
           <EmptyState>No albums yet.</EmptyState>
         ) : (
-          <ol className="divide-y divide-cream">
+          <ol className="divide-cream divide-y">
             {albums.map((album, i) => (
               <li key={album.id} className="flex flex-wrap items-center gap-3 py-3">
                 <div className="flex flex-col">
                   <button
                     type="button"
                     aria-label={`Move ${album.name} up`}
-                    className="px-2 text-cocoa/60 hover:text-cocoa disabled:opacity-20"
+                    className="text-cocoa/60 hover:text-cocoa px-2 disabled:opacity-20"
                     disabled={i === 0 || pending}
                     onClick={() => move(album.id, "up")}
                   >
@@ -49,7 +49,7 @@ export function AlbumManager({ albums }: { albums: AdminAlbum[] }) {
                   <button
                     type="button"
                     aria-label={`Move ${album.name} down`}
-                    className="px-2 text-cocoa/60 hover:text-cocoa disabled:opacity-20"
+                    className="text-cocoa/60 hover:text-cocoa px-2 disabled:opacity-20"
                     disabled={i === albums.length - 1 || pending}
                     onClick={() => move(album.id, "down")}
                   >
@@ -57,8 +57,8 @@ export function AlbumManager({ albums }: { albums: AdminAlbum[] }) {
                   </button>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-serif text-xl text-cocoa">{album.name}</p>
-                  <p className="text-xs text-taupe-dark">
+                  <p className="text-cocoa font-serif text-xl">{album.name}</p>
+                  <p className="text-taupe-dark text-xs">
                     {album.photoCount} photo{album.photoCount === 1 ? "" : "s"} · /memories?album={album.slug}
                   </p>
                 </div>
@@ -72,9 +72,17 @@ export function AlbumManager({ albums }: { albums: AdminAlbum[] }) {
         )}
       </Card>
 
-      <Drawer open={editing !== null} onClose={() => setEditing(null)} title={editing === "new" ? "New album" : "Edit album"}>
+      <Drawer
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={editing === "new" ? "New album" : "Edit album"}
+      >
         {editing ? (
-          <AlbumForm key={editing === "new" ? "new" : editing.id} album={editing === "new" ? null : editing} onDone={() => setEditing(null)} />
+          <AlbumForm
+            key={editing === "new" ? "new" : editing.id}
+            album={editing === "new" ? null : editing}
+            onDone={() => setEditing(null)}
+          />
         ) : null}
       </Drawer>
     </>
@@ -108,16 +116,31 @@ function AlbumForm({ album, onDone }: { album: AdminAlbum | null; onDone: () => 
   return (
     <div className="space-y-5">
       <Field label="Album name">
-        {(id) => <input id={id} className="field" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />}
+        {(id) => (
+          <input
+            id={id}
+            className="field"
+            value={name}
+            maxLength={80}
+            onChange={(e) => setName(e.target.value)}
+          />
+        )}
       </Field>
       <Field label="Description (optional)">
         {(id) => (
-          <textarea id={id} rows={3} className="field" value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} />
+          <textarea
+            id={id}
+            rows={3}
+            className="field"
+            value={description}
+            maxLength={500}
+            onChange={(e) => setDescription(e.target.value)}
+          />
         )}
       </Field>
       <PhotoField label="Cover photo (optional)" photo={cover} onChange={setCover} />
       <Toggle label="Show in the gallery" checked={published} onChange={setPublished} />
-      <div className="flex items-center justify-between border-t border-taupe/25 pt-5">
+      <div className="border-taupe/25 flex items-center justify-between border-t pt-5">
         {album ? (
           <ConfirmButton onConfirm={remove} disabled={pending}>
             Delete album

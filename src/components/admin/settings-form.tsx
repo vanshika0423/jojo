@@ -26,17 +26,28 @@ export function SettingsForm({
   const [pending, startTransition] = useTransition();
 
   const saveHero = () =>
-    startTransition(async () => void report(await saveSettings({ key: "hero", value: { ...hero, photoId: heroPhoto?.id ?? null } }), "Homepage hero saved"));
-  const saveHome = () => startTransition(async () => void report(await saveSettings({ key: "home", value: home }), "Homepage text saved"));
+    startTransition(
+      async () =>
+        void report(
+          await saveSettings({ key: "hero", value: { ...hero, photoId: heroPhoto?.id ?? null } }),
+          "Homepage hero saved",
+        ),
+    );
+  const saveHome = () =>
+    startTransition(
+      async () => void report(await saveSettings({ key: "home", value: home }), "Homepage text saved"),
+    );
   const saveFeatures = (next: FeatureSettings) => {
     setFeatures(next);
-    startTransition(async () => void report(await saveSettings({ key: "features", value: next }), "Settings saved"));
+    startTransition(
+      async () => void report(await saveSettings({ key: "features", value: next }), "Settings saved"),
+    );
   };
 
   return (
     <div className="space-y-6">
       <Card>
-        <h2 className="mb-5 text-2xl text-cocoa">Homepage hero</h2>
+        <h2 className="text-cocoa mb-5 text-2xl">Homepage hero</h2>
         <div className="space-y-5">
           <PhotoField
             label="Hero photograph"
@@ -45,13 +56,58 @@ export function SettingsForm({
             hint="A wide, landscape photo works best. It must be published to appear. Also used for link previews when shared."
           />
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Title">{(id) => <input id={id} className="field" value={hero.title} maxLength={80} onChange={(e) => setHero({ ...hero, title: e.target.value })} />}</Field>
-            <Field label="Dates line">{(id) => <input id={id} className="field" value={hero.dates} maxLength={80} onChange={(e) => setHero({ ...hero, dates: e.target.value })} />}</Field>
+            <Field label="Title">
+              {(id) => (
+                <input
+                  id={id}
+                  className="field"
+                  value={hero.title}
+                  maxLength={80}
+                  onChange={(e) => setHero({ ...hero, title: e.target.value })}
+                />
+              )}
+            </Field>
+            <Field label="Dates line">
+              {(id) => (
+                <input
+                  id={id}
+                  className="field"
+                  value={hero.dates}
+                  maxLength={80}
+                  onChange={(e) => setHero({ ...hero, dates: e.target.value })}
+                />
+              )}
+            </Field>
           </div>
-          <Field label="Supporting line">{(id) => <input id={id} className="field" value={hero.tagline} maxLength={200} onChange={(e) => setHero({ ...hero, tagline: e.target.value })} />}</Field>
-          <Field label="Button text">{(id) => <input id={id} className="field" value={hero.cta} maxLength={40} onChange={(e) => setHero({ ...hero, cta: e.target.value })} />}</Field>
+          <Field label="Supporting line">
+            {(id) => (
+              <input
+                id={id}
+                className="field"
+                value={hero.tagline}
+                maxLength={200}
+                onChange={(e) => setHero({ ...hero, tagline: e.target.value })}
+              />
+            )}
+          </Field>
+          <Field label="Button text">
+            {(id) => (
+              <input
+                id={id}
+                className="field"
+                value={hero.cta}
+                maxLength={40}
+                onChange={(e) => setHero({ ...hero, cta: e.target.value })}
+              />
+            )}
+          </Field>
           <div className="flex justify-end">
-            <button type="button" className="btn btn-primary" onClick={saveHero} disabled={pending || !hero.title.trim()}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={saveHero}
+              disabled={pending || !hero.title.trim()}
+            >
               Save hero
             </button>
           </div>
@@ -59,21 +115,76 @@ export function SettingsForm({
       </Card>
 
       <Card>
-        <h2 className="mb-5 text-2xl text-cocoa">Homepage words</h2>
+        <h2 className="text-cocoa mb-5 text-2xl">Homepage words</h2>
         <div className="space-y-5">
-          <Field label="Introduction heading">{(id) => <input id={id} className="field" value={home.introHeading} maxLength={120} onChange={(e) => setHome({ ...home, introHeading: e.target.value })} />}</Field>
-          <Field label="Introduction" hint="A short introduction to Jojo. Leave a blank line between paragraphs.">
-            {(id) => <textarea id={id} rows={7} className="field font-serif text-lg leading-relaxed" value={home.introBody} maxLength={4000} onChange={(e) => setHome({ ...home, introBody: e.target.value })} />}
+          <Field label="Introduction heading">
+            {(id) => (
+              <input
+                id={id}
+                className="field"
+                value={home.introHeading}
+                maxLength={120}
+                onChange={(e) => setHome({ ...home, introHeading: e.target.value })}
+              />
+            )}
+          </Field>
+          <Field
+            label="Introduction"
+            hint="A short introduction to Jojo. Leave a blank line between paragraphs."
+          >
+            {(id) => (
+              <textarea
+                id={id}
+                rows={7}
+                className="field font-serif text-lg leading-relaxed"
+                value={home.introBody}
+                maxLength={4000}
+                onChange={(e) => setHome({ ...home, introBody: e.target.value })}
+              />
+            )}
           </Field>
           <Field label="“The Little Things” introduction (optional)">
-            {(id) => <textarea id={id} rows={2} className="field" value={home.littleThingsIntro} maxLength={600} onChange={(e) => setHome({ ...home, littleThingsIntro: e.target.value })} />}
+            {(id) => (
+              <textarea
+                id={id}
+                rows={2}
+                className="field"
+                value={home.littleThingsIntro}
+                maxLength={600}
+                onChange={(e) => setHome({ ...home, littleThingsIntro: e.target.value })}
+              />
+            )}
           </Field>
-          <Field label="Closing heading">{(id) => <input id={id} className="field" value={home.finalHeading} maxLength={120} onChange={(e) => setHome({ ...home, finalHeading: e.target.value })} />}</Field>
+          <Field label="Closing heading">
+            {(id) => (
+              <input
+                id={id}
+                className="field"
+                value={home.finalHeading}
+                maxLength={120}
+                onChange={(e) => setHome({ ...home, finalHeading: e.target.value })}
+              />
+            )}
+          </Field>
           <Field label="Closing line (optional)">
-            {(id) => <textarea id={id} rows={2} className="field" value={home.finalBody} maxLength={1000} onChange={(e) => setHome({ ...home, finalBody: e.target.value })} />}
+            {(id) => (
+              <textarea
+                id={id}
+                rows={2}
+                className="field"
+                value={home.finalBody}
+                maxLength={1000}
+                onChange={(e) => setHome({ ...home, finalBody: e.target.value })}
+              />
+            )}
           </Field>
           <div className="flex justify-end">
-            <button type="button" className="btn btn-primary" onClick={saveHome} disabled={pending || !home.finalHeading.trim()}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={saveHome}
+              disabled={pending || !home.finalHeading.trim()}
+            >
               Save homepage words
             </button>
           </div>
@@ -81,7 +192,7 @@ export function SettingsForm({
       </Card>
 
       <Card>
-        <h2 className="mb-5 text-2xl text-cocoa">Visitors</h2>
+        <h2 className="text-cocoa mb-5 text-2xl">Visitors</h2>
         <div className="space-y-5">
           <Toggle
             label="Allow photo downloads"

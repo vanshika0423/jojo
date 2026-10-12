@@ -80,7 +80,9 @@ export function PhotoPicker(props: PickerProps) {
         onChange={(e) => setQ(e.target.value)}
       />
       {photos.length === 0 && !loading ? (
-        <p className="py-10 text-center text-sm text-taupe-dark">No photos found. Upload some on the Photos page first.</p>
+        <p className="text-taupe-dark py-10 text-center text-sm">
+          No photos found. Upload some on the Photos page first.
+        </p>
       ) : null}
       <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         {photos.map((photo) => {
@@ -91,18 +93,23 @@ export function PhotoPicker(props: PickerProps) {
                 type="button"
                 onClick={() => toggle(photo)}
                 aria-pressed={props.multiple ? order >= 0 : undefined}
-                className={cn("block w-full overflow-hidden rounded-xl", order >= 0 ? "ring-2 ring-cocoa ring-offset-2" : "hover:opacity-85")}
+                className={cn(
+                  "block w-full overflow-hidden rounded-xl",
+                  order >= 0 ? "ring-cocoa ring-2 ring-offset-2" : "hover:opacity-85",
+                )}
                 aria-label={photo.caption ?? photo.originalFilename ?? "Photo"}
               >
                 <Thumb photo={photo} className="aspect-square" />
               </button>
               {order >= 0 ? (
-                <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-cocoa text-xs text-ivory">
+                <span className="bg-cocoa text-ivory absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full text-xs">
                   {order + 1}
                 </span>
               ) : null}
               {!photo.published ? (
-                <span className="absolute bottom-1.5 left-1.5 rounded-full bg-ivory/90 px-1.5 text-[10px]">Draft</span>
+                <span className="bg-ivory/90 absolute bottom-1.5 left-1.5 rounded-full px-1.5 text-[10px]">
+                  Draft
+                </span>
               ) : null}
             </li>
           );
@@ -116,8 +123,8 @@ export function PhotoPicker(props: PickerProps) {
         </div>
       ) : null}
       {props.multiple ? (
-        <div className="sticky bottom-0 -mx-5 mt-6 flex items-center justify-between border-t border-taupe/25 bg-ivory px-5 py-4">
-          <span className="text-sm text-cocoa/70">{chosen.length} chosen</span>
+        <div className="border-taupe/25 bg-ivory sticky bottom-0 -mx-5 mt-6 flex items-center justify-between border-t px-5 py-4">
+          <span className="text-cocoa/70 text-sm">{chosen.length} chosen</span>
           <button
             type="button"
             className="btn btn-primary"

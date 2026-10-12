@@ -16,7 +16,8 @@ export default async function AdminPhotosPage() {
   return (
     <>
       <PageTitle title="Photos">
-        Upload, caption, organise and publish photographs. Click a photo to edit it; tick several to change them together.
+        Upload, caption, organise and publish photographs. Click a photo to edit it; tick several to change
+        them together.
       </PageTitle>
       {!isCloudinaryServerConfigured ? <SetupNotice service="Cloudinary" /> : null}
       <Card className="mb-8">

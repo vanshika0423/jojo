@@ -9,7 +9,9 @@ export default async function AdminStoryPage() {
   const sections = await getAdminStory();
   return (
     <>
-      <PageTitle title="His Story">Each chapter appears on the “His Story” page with a large photograph. Click a chapter to write it.</PageTitle>
+      <PageTitle title="His Story">
+        Each chapter appears on the “His Story” page with a large photograph. Click a chapter to write it.
+      </PageTitle>
       <StoryEditor sections={sections} />
     </>
   );

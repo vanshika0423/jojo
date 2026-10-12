@@ -69,9 +69,7 @@ export function toVideo(row: Row): Video {
     isFeatured: Boolean(row.is_featured),
     published: Boolean(row.published),
     position: Number(row.position ?? 0),
-    albumIds: Array.isArray(row.video_albums)
-      ? row.video_albums.map((a: Row) => a.album_id)
-      : [],
+    albumIds: Array.isArray(row.video_albums) ? row.video_albums.map((a: Row) => a.album_id) : [],
   };
 }
 

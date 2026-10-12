@@ -13,7 +13,13 @@ import { formatDate, paragraphs, yearOf } from "@/lib/format";
 import type { Photo, TimelineEvent, Video } from "@/lib/types";
 import { InfinityText } from "@/components/site/infinity-text";
 
-export function TimelineView({ events, allowDownloads }: { events: TimelineEvent[]; allowDownloads: boolean }) {
+export function TimelineView({
+  events,
+  allowDownloads,
+}: {
+  events: TimelineEvent[];
+  allowDownloads: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 70%", "end 60%"] });
@@ -23,10 +29,7 @@ export function TimelineView({ events, allowDownloads }: { events: TimelineEvent
   const [video, setVideo] = useState<Video | null>(null);
   const closeVideo = useCallback(() => setVideo(null), []);
   const closeLightbox = useCallback(() => setLightbox(null), []);
-  const setIndex = useCallback(
-    (index: number) => setLightbox((lb) => (lb ? { ...lb, index } : lb)),
-    [],
-  );
+  const setIndex = useCallback((index: number) => setLightbox((lb) => (lb ? { ...lb, index } : lb)), []);
 
   const years = useMemo(() => {
     const map = new Map<number, TimelineEvent[]>();
@@ -41,14 +44,14 @@ export function TimelineView({ events, allowDownloads }: { events: TimelineEvent
     <>
       <nav
         aria-label="Years"
-        className="sticky top-16 z-30 mb-12 border-y border-taupe/20 bg-ivory/90 backdrop-blur-md sm:top-20"
+        className="border-taupe/20 bg-ivory/90 sticky top-16 z-30 mb-12 border-y backdrop-blur-md sm:top-20"
       >
         <ul className="no-scrollbar mx-auto flex w-fit max-w-full gap-1 overflow-x-auto px-5 py-3">
           {years.map(([year]) => (
             <li key={year}>
               <a
                 href={`#year-${year}`}
-                className="block rounded-full px-4 py-1.5 font-serif text-lg text-cocoa/75 transition-colors hover:bg-cream hover:text-cocoa"
+                className="text-cocoa/75 hover:bg-cream hover:text-cocoa block rounded-full px-4 py-1.5 font-serif text-lg transition-colors"
               >
                 {year}
               </a>
@@ -58,18 +61,23 @@ export function TimelineView({ events, allowDownloads }: { events: TimelineEvent
       </nav>
 
       <div ref={ref} className="relative mx-auto max-w-4xl px-5 pb-28 sm:px-8">
-        <div aria-hidden className="absolute bottom-0 left-[1.6rem] top-0 w-px bg-taupe/30 sm:left-1/2" />
+        <div aria-hidden className="bg-taupe/30 absolute top-0 bottom-0 left-[1.6rem] w-px sm:left-1/2" />
         <motion.div
           aria-hidden
-          className="absolute bottom-0 left-[1.6rem] top-0 w-px origin-top bg-cocoa/60 sm:left-1/2"
+          className="bg-cocoa/60 absolute top-0 bottom-0 left-[1.6rem] w-px origin-top sm:left-1/2"
           style={reduce ? undefined : { scaleY: progress }}
         />
 
         {years.map(([year, yearEvents]) => (
-          <section key={year} id={`year-${year}`} aria-labelledby={`year-${year}-h`} className="relative scroll-mt-40">
+          <section
+            key={year}
+            id={`year-${year}`}
+            aria-labelledby={`year-${year}-h`}
+            className="relative scroll-mt-40"
+          >
             <h2
               id={`year-${year}-h`}
-              className="relative z-10 mx-auto mb-12 w-fit rounded-full bg-ivory px-5 font-serif text-5xl text-cocoa sm:text-6xl"
+              className="bg-ivory text-cocoa relative z-10 mx-auto mb-12 w-fit rounded-full px-5 font-serif text-5xl sm:text-6xl"
             >
               {year}
             </h2>
@@ -82,12 +90,12 @@ export function TimelineView({ events, allowDownloads }: { events: TimelineEvent
                   <li key={event.id} className="relative pl-12 sm:grid sm:grid-cols-2 sm:gap-16 sm:pl-0">
                     <span
                       aria-hidden
-                      className="absolute left-[1.25rem] top-2 h-3 w-3 -translate-x-[0.03rem] rounded-full bg-sage ring-[6px] ring-ivory sm:left-1/2 sm:-translate-x-1/2"
+                      className="bg-sage ring-ivory absolute top-2 left-[1.25rem] h-3 w-3 -translate-x-[0.03rem] rounded-full ring-[6px] sm:left-1/2 sm:-translate-x-1/2"
                     />
                     <Reveal className={right ? "sm:col-start-2" : "sm:text-right"}>
                       <p className="eyebrow">{formatDate(event.eventDate, event.datePrecision)}</p>
-                      <h3 className="mt-2 text-3xl text-cocoa sm:text-4xl">{event.title}</h3>
-                      <div className="mt-4 space-y-3 leading-relaxed text-cocoa/80">
+                      <h3 className="text-cocoa mt-2 text-3xl sm:text-4xl">{event.title}</h3>
+                      <div className="text-cocoa/80 mt-4 space-y-3 leading-relaxed">
                         {event.story ? (
                           paragraphs(event.story).map((p, j) => <p key={j}>{p}</p>)
                         ) : (
@@ -99,14 +107,21 @@ export function TimelineView({ events, allowDownloads }: { events: TimelineEvent
                       {photos.length || videos.length ? (
                         <ul className="mt-6 grid grid-cols-3 gap-2">
                           {photos.map((photo, j) => (
-                            <li key={photo.id} className={j === 0 && photos.length !== 3 ? "col-span-2 row-span-2" : ""}>
+                            <li
+                              key={photo.id}
+                              className={j === 0 && photos.length !== 3 ? "col-span-2 row-span-2" : ""}
+                            >
                               <button
                                 type="button"
                                 onClick={() => setLightbox({ photos, index: j })}
-                                className="photo-zoom relative block aspect-square w-full overflow-hidden rounded-xl bg-cream"
+                                className="photo-zoom bg-cream relative block aspect-square w-full overflow-hidden rounded-xl"
                                 aria-label={photo.caption ? `Open photo: ${photo.caption}` : "Open photo"}
                               >
-                                <PhotoFrame photo={photo} sizes="(min-width: 640px) 220px, 33vw" placeholderLabel={null} />
+                                <PhotoFrame
+                                  photo={photo}
+                                  sizes="(min-width: 640px) 220px, 33vw"
+                                  placeholderLabel={null}
+                                />
                               </button>
                             </li>
                           ))}
@@ -115,7 +130,7 @@ export function TimelineView({ events, allowDownloads }: { events: TimelineEvent
                               <button
                                 type="button"
                                 onClick={() => setVideo(v)}
-                                className="photo-zoom group relative block aspect-video w-full overflow-hidden rounded-xl bg-cream"
+                                className="photo-zoom group bg-cream relative block aspect-video w-full overflow-hidden rounded-xl"
                                 aria-label={`Play ${v.title ?? "video"}`}
                               >
                                 <VideoPoster video={v} sizes="(min-width: 640px) 420px, 100vw" />
@@ -135,8 +150,10 @@ export function TimelineView({ events, allowDownloads }: { events: TimelineEvent
           </section>
         ))}
 
-        <div className="relative z-10 mx-auto w-fit rounded-full bg-ivory px-6 text-center">
-          <p className="font-serif text-6xl text-cocoa"><InfinityText text="♾️" /></p>
+        <div className="bg-ivory relative z-10 mx-auto w-fit rounded-full px-6 text-center">
+          <p className="text-cocoa font-serif text-6xl">
+            <InfinityText text="♾️" />
+          </p>
           <p className="eyebrow mt-2">And on, forever</p>
         </div>
       </div>

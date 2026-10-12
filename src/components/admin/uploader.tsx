@@ -77,7 +77,10 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
           if (!res.ok) throw new Error(res.error);
           patch(item.id, { status: "done" });
         } catch (error) {
-          patch(item.id, { status: "error", error: error instanceof Error ? error.message : "Upload failed" });
+          patch(item.id, {
+            status: "error",
+            error: error instanceof Error ? error.message : "Upload failed",
+          });
         } finally {
           running.current--;
           if (running.current === 0 && queue.current.length === 0) {
@@ -114,7 +117,9 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
 
   const done = items.filter((i) => i.status === "done").length;
   const failed = items.filter((i) => i.status === "error").length;
-  const active = items.filter((i) => i.status === "uploading" || i.status === "saving" || i.status === "queued").length;
+  const active = items.filter(
+    (i) => i.status === "uploading" || i.status === "saving" || i.status === "queued",
+  ).length;
 
   return (
     <div className="space-y-5">
@@ -134,8 +139,8 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
           dragging ? "border-sage-dark bg-sage/15" : "border-taupe/60 bg-cream/40",
         )}
       >
-        <p className="font-serif text-2xl text-cocoa">Drop {noun}s here</p>
-        <p className="mt-1 text-sm text-cocoa/70">or</p>
+        <p className="text-cocoa font-serif text-2xl">Drop {noun}s here</p>
+        <p className="text-cocoa/70 mt-1 text-sm">or</p>
         <button type="button" className="btn btn-primary mt-3" onClick={() => inputRef.current?.click()}>
           Choose {noun}s
         </button>
@@ -161,13 +166,25 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
         <fieldset className="rounded-2xl bg-white p-4">
           <legend className="label px-1">After uploading</legend>
           <label className="flex items-start gap-2 py-1 text-sm">
-            <input type="radio" name={`${kind}-publish`} checked={!publish} onChange={() => setPublish(false)} className="mt-1 accent-cocoa" />
+            <input
+              type="radio"
+              name={`${kind}-publish`}
+              checked={!publish}
+              onChange={() => setPublish(false)}
+              className="accent-cocoa mt-1"
+            />
             <span>
               <strong className="font-medium">Keep as drafts</strong> — review captions first, then publish
             </span>
           </label>
           <label className="flex items-start gap-2 py-1 text-sm">
-            <input type="radio" name={`${kind}-publish`} checked={publish} onChange={() => setPublish(true)} className="mt-1 accent-cocoa" />
+            <input
+              type="radio"
+              name={`${kind}-publish`}
+              checked={publish}
+              onChange={() => setPublish(true)}
+              className="accent-cocoa mt-1"
+            />
             <span>
               <strong className="font-medium">Publish immediately</strong> — visible on the website right away
             </span>
@@ -184,7 +201,10 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
                   type="button"
                   aria-pressed={on}
                   onClick={() => setAlbumIds((ids) => (on ? ids.filter((x) => x !== a.id) : [...ids, a.id]))}
-                  className={cn("rounded-full px-3 py-1 text-xs", on ? "bg-cocoa text-ivory" : "bg-cream text-cocoa/80")}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs",
+                    on ? "bg-cocoa text-ivory" : "bg-cream text-cocoa/80",
+                  )}
                 >
                   {a.name}
                 </button>
@@ -197,16 +217,16 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
 
       {items.length ? (
         <div className="rounded-2xl bg-white p-4">
-          <p className="mb-3 text-sm text-cocoa/80" aria-live="polite">
+          <p className="text-cocoa/80 mb-3 text-sm" aria-live="polite">
             {active ? `Uploading… ${done} of ${items.length} done` : `${done} uploaded`}
             {failed ? ` · ${failed} need attention` : ""}
           </p>
           <ul className="max-h-80 space-y-2 overflow-y-auto">
             {items.map((item) => (
-              <li key={item.id} className="rounded-xl border border-cream px-3 py-2">
+              <li key={item.id} className="border-cream rounded-xl border px-3 py-2">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate">{item.file.name}</span>
-                  <span className="shrink-0 text-xs text-taupe-dark">
+                  <span className="text-taupe-dark shrink-0 text-xs">
                     {formatBytes(item.file.size)} ·{" "}
                     {
                       {
@@ -219,11 +239,15 @@ export function Uploader({ kind, albums }: { kind: "photo" | "video"; albums: Al
                     }
                   </span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-cream">
+                <div className="bg-cream mt-2 h-1.5 overflow-hidden rounded-full">
                   <div
                     className={cn(
                       "h-full rounded-full transition-[width] duration-300",
-                      item.status === "error" ? "bg-[#9b3d32]" : item.status === "done" ? "bg-sage-dark" : "bg-cocoa",
+                      item.status === "error"
+                        ? "bg-[#9b3d32]"
+                        : item.status === "done"
+                          ? "bg-sage-dark"
+                          : "bg-cocoa",
                     )}
                     style={{ width: `${item.status === "error" ? 100 : Math.round(item.progress * 100)}%` }}
                   />

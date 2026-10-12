@@ -30,7 +30,7 @@ export function PhotoStrip({ children, label }: { children: React.ReactNode; lab
             onClick={() => scrollBy(dir)}
             aria-label={dir < 0 ? "Previous photos" : "Next photos"}
             className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full border border-cocoa/20 text-cocoa transition-colors hover:bg-cream",
+              "border-cocoa/20 text-cocoa hover:bg-cream flex h-11 w-11 items-center justify-center rounded-full border transition-colors",
             )}
           >
             <span aria-hidden>{dir < 0 ? "←" : "→"}</span>

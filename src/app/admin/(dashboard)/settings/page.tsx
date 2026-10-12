@@ -9,7 +9,9 @@ export default async function AdminSettingsPage() {
   const s = await getAdminSettings();
   return (
     <>
-      <PageTitle title="Homepage & Settings">Change the homepage photograph and words, and how visitors can interact with the site.</PageTitle>
+      <PageTitle title="Homepage & Settings">
+        Change the homepage photograph and words, and how visitors can interact with the site.
+      </PageTitle>
       <SettingsForm hero={s.hero} heroPhoto={s.heroPhoto} home={s.home} features={s.features} />
     </>
   );

@@ -23,16 +23,21 @@ export function VideoManager({ videos, albums }: { videos: Video[]; albums: Albu
     <>
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {videos.map((video, i) => (
-          <li key={video.id} className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(81,68,60,0.08)]">
+          <li
+            key={video.id}
+            className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(81,68,60,0.08)]"
+          >
             <button type="button" className="block w-full text-left" onClick={() => setEditingId(video.id)}>
               <Thumb video={video} size={640} className="aspect-video" />
             </button>
             <div className="flex items-start gap-3 p-4">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-serif text-xl text-cocoa">{video.title ?? "Untitled video"}</p>
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-taupe-dark">
+                <p className="text-cocoa truncate font-serif text-xl">{video.title ?? "Untitled video"}</p>
+                <p className="text-taupe-dark mt-1 flex flex-wrap items-center gap-2 text-xs">
                   <StatusPill published={video.published} />
-                  {video.isFeatured ? <span className="rounded-full bg-cream px-2 py-0.5">★ Featured</span> : null}
+                  {video.isFeatured ? (
+                    <span className="bg-cream rounded-full px-2 py-0.5">★ Featured</span>
+                  ) : null}
                   {video.duration ? formatDuration(video.duration) : null}
                 </p>
               </div>
@@ -41,8 +46,13 @@ export function VideoManager({ videos, albums }: { videos: Video[]; albums: Albu
                   type="button"
                   aria-label="Move earlier"
                   disabled={i === 0 || pending}
-                  className="px-2 text-cocoa/60 disabled:opacity-20"
-                  onClick={() => startTransition(async () => void report(await moveVideo({ id: video.id, direction: "up" }), "Order updated"))}
+                  className="text-cocoa/60 px-2 disabled:opacity-20"
+                  onClick={() =>
+                    startTransition(
+                      async () =>
+                        void report(await moveVideo({ id: video.id, direction: "up" }), "Order updated"),
+                    )
+                  }
                 >
                   ▲
                 </button>
@@ -50,8 +60,13 @@ export function VideoManager({ videos, albums }: { videos: Video[]; albums: Albu
                   type="button"
                   aria-label="Move later"
                   disabled={i === videos.length - 1 || pending}
-                  className="px-2 text-cocoa/60 disabled:opacity-20"
-                  onClick={() => startTransition(async () => void report(await moveVideo({ id: video.id, direction: "down" }), "Order updated"))}
+                  className="text-cocoa/60 px-2 disabled:opacity-20"
+                  onClick={() =>
+                    startTransition(
+                      async () =>
+                        void report(await moveVideo({ id: video.id, direction: "down" }), "Order updated"),
+                    )
+                  }
                 >
                   ▼
                 </button>
@@ -61,7 +76,9 @@ export function VideoManager({ videos, albums }: { videos: Video[]; albums: Albu
         ))}
       </ul>
       <Drawer open={Boolean(editing)} onClose={() => setEditingId(null)} title="Edit video" wide>
-        {editing ? <VideoEditor key={editing.id} video={editing} albums={albums} onDone={() => setEditingId(null)} /> : null}
+        {editing ? (
+          <VideoEditor key={editing.id} video={editing} albums={albums} onDone={() => setEditingId(null)} />
+        ) : null}
       </Drawer>
     </>
   );
@@ -101,7 +118,10 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
     try {
       setProgress("0%");
       const asset = await uploadSingle(file, kind, (p) => setProgress(`${Math.round(p * 100)}%`));
-      const res = kind === "poster" ? await setVideoPoster({ id: video.id, asset }) : await replaceVideo({ id: video.id, asset });
+      const res =
+        kind === "poster"
+          ? await setVideoPoster({ id: video.id, asset })
+          : await replaceVideo({ id: video.id, asset });
       report(res, kind === "poster" ? "Thumbnail updated" : "Video replaced");
     } catch (e) {
       notify(e instanceof Error ? e.message : "Upload failed", "error");
@@ -115,38 +135,127 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
       <div className="space-y-4">
         {isCloudinaryConfigured ? <VideoPlayer video={video} className="w-full rounded-xl bg-black" /> : null}
         <div className="flex flex-wrap gap-2">
-          <label className="btn btn-ghost !px-4 !py-2 cursor-pointer">
+          <label className="btn btn-ghost cursor-pointer !px-4 !py-2">
             Upload thumbnail image
-            <input type="file" accept="image/*" className="sr-only" disabled={progress !== null} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f, "poster"); }} />
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              disabled={progress !== null}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void upload(f, "poster");
+              }}
+            />
           </label>
           {video.posterPublicId ? (
-            <button type="button" className="btn btn-ghost !px-4 !py-2" onClick={() => startTransition(async () => void report(await setVideoPoster({ id: video.id, asset: null }), "Thumbnail removed"))}>
+            <button
+              type="button"
+              className="btn btn-ghost !px-4 !py-2"
+              onClick={() =>
+                startTransition(
+                  async () =>
+                    void report(await setVideoPoster({ id: video.id, asset: null }), "Thumbnail removed"),
+                )
+              }
+            >
               Use a frame instead
             </button>
           ) : null}
-          <label className="btn btn-ghost !px-4 !py-2 cursor-pointer">
+          <label className="btn btn-ghost cursor-pointer !px-4 !py-2">
             Replace video
-            <input type="file" accept="video/*" className="sr-only" disabled={progress !== null} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f, "video"); }} />
+            <input
+              type="file"
+              accept="video/*"
+              className="sr-only"
+              disabled={progress !== null}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void upload(f, "video");
+              }}
+            />
           </label>
         </div>
-        {progress ? <p className="text-sm text-cocoa/70" role="status">Uploading… {progress}</p> : null}
+        {progress ? (
+          <p className="text-cocoa/70 text-sm" role="status">
+            Uploading… {progress}
+          </p>
+        ) : null}
         {!video.posterPublicId ? (
-          <Field label="Thumbnail frame (seconds into the video)" hint="Leave empty to let Cloudinary pick a good frame automatically.">
-            {(id) => <input id={id} type="number" min={0} step={0.5} className="field" value={form.posterOffset} onChange={(e) => set("posterOffset", e.target.value)} />}
+          <Field
+            label="Thumbnail frame (seconds into the video)"
+            hint="Leave empty to let Cloudinary pick a good frame automatically."
+          >
+            {(id) => (
+              <input
+                id={id}
+                type="number"
+                min={0}
+                step={0.5}
+                className="field"
+                value={form.posterOffset}
+                onChange={(e) => set("posterOffset", e.target.value)}
+              />
+            )}
           </Field>
         ) : null}
       </div>
       <div className="space-y-5">
-        <Field label="Title">{(id) => <input id={id} className="field" maxLength={200} value={form.title} onChange={(e) => set("title", e.target.value)} />}</Field>
-        <Field label="Caption">{(id) => <textarea id={id} rows={3} className="field" maxLength={1000} value={form.caption} onChange={(e) => set("caption", e.target.value)} />}</Field>
-        <Field label="Date recorded (optional)">{(id) => <input id={id} type="date" min="2017-03-11" className="field" value={form.recordedOn} onChange={(e) => set("recordedOn", e.target.value)} />}</Field>
+        <Field label="Title">
+          {(id) => (
+            <input
+              id={id}
+              className="field"
+              maxLength={200}
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+            />
+          )}
+        </Field>
+        <Field label="Caption">
+          {(id) => (
+            <textarea
+              id={id}
+              rows={3}
+              className="field"
+              maxLength={1000}
+              value={form.caption}
+              onChange={(e) => set("caption", e.target.value)}
+            />
+          )}
+        </Field>
+        <Field label="Date recorded (optional)">
+          {(id) => (
+            <input
+              id={id}
+              type="date"
+              min="2017-03-11"
+              className="field"
+              value={form.recordedOn}
+              onChange={(e) => set("recordedOn", e.target.value)}
+            />
+          )}
+        </Field>
         <div>
           <p className="label">Albums</p>
           <div className="flex flex-wrap gap-2">
             {albums.map((a) => {
               const on = form.albumIds.includes(a.id);
               return (
-                <button key={a.id} type="button" aria-pressed={on} onClick={() => set("albumIds", on ? form.albumIds.filter((x) => x !== a.id) : [...form.albumIds, a.id])} className={cn("rounded-full px-3 py-1 text-xs", on ? "bg-cocoa text-ivory" : "bg-cream text-cocoa/80")}>
+                <button
+                  key={a.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    set("albumIds", on ? form.albumIds.filter((x) => x !== a.id) : [...form.albumIds, a.id])
+                  }
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs",
+                    on ? "bg-cocoa text-ivory" : "bg-cream text-cocoa/80",
+                  )}
+                >
                   {a.name}
                 </button>
               );
@@ -154,11 +263,28 @@ function VideoEditor({ video, albums, onDone }: { video: Video; albums: Album[];
           </div>
         </div>
         <div className="space-y-4 rounded-2xl bg-white p-4">
-          <Toggle label="Published" description="Visible on the Videos page" checked={form.published} onChange={(v) => set("published", v)} />
-          <Toggle label="Feature on the homepage" description="Only one video can be featured" checked={form.isFeatured} onChange={(v) => set("isFeatured", v)} />
+          <Toggle
+            label="Published"
+            description="Visible on the Videos page"
+            checked={form.published}
+            onChange={(v) => set("published", v)}
+          />
+          <Toggle
+            label="Feature on the homepage"
+            description="Only one video can be featured"
+            checked={form.isFeatured}
+            onChange={(v) => set("isFeatured", v)}
+          />
         </div>
-        <div className="flex items-center justify-between border-t border-taupe/25 pt-5">
-          <ConfirmButton disabled={pending} onConfirm={() => startTransition(async () => { if (report(await deleteVideo(video.id), "Video deleted")) onDone(); })}>
+        <div className="border-taupe/25 flex items-center justify-between border-t pt-5">
+          <ConfirmButton
+            disabled={pending}
+            onConfirm={() =>
+              startTransition(async () => {
+                if (report(await deleteVideo(video.id), "Video deleted")) onDone();
+              })
+            }
+          >
             Delete video
           </ConfirmButton>
           <button type="button" className="btn btn-primary" onClick={save} disabled={pending}>

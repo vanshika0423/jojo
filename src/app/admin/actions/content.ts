@@ -26,12 +26,22 @@ async function uniqueSlug(supabase: SupabaseClient, table: OrderedTable, base: s
 }
 
 async function nextPosition(supabase: SupabaseClient, table: OrderedTable) {
-  const { data } = await supabase.from(table).select("position").order("position", { ascending: false }).limit(1).maybeSingle();
+  const { data } = await supabase
+    .from(table)
+    .select("position")
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   return (data?.position ?? 0) + 1;
 }
 
 /** Swap an item with its neighbour, renumbering the whole (short) list. */
-async function moveInList(supabase: SupabaseClient, table: OrderedTable, id: string, direction: "up" | "down") {
+async function moveInList(
+  supabase: SupabaseClient,
+  table: OrderedTable,
+  id: string,
+  direction: "up" | "down",
+) {
   const rows = check(await supabase.from(table).select("id").order("position").order("created_at"), table);
   const i = rows.findIndex((r) => r.id === id);
   const j = direction === "up" ? i - 1 : i + 1;
@@ -39,7 +49,13 @@ async function moveInList(supabase: SupabaseClient, table: OrderedTable, id: str
   const order = rows.map((r) => r.id);
   [order[i], order[j]] = [order[j], order[i]];
   await Promise.all(
-    order.map((rid, n) => supabase.from(table).update({ position: n + 1 }).eq("id", rid).then((r) => check(r, table))),
+    order.map((rid, n) =>
+      supabase
+        .from(table)
+        .update({ position: n + 1 })
+        .eq("id", rid)
+        .then((r) => check(r, table)),
+    ),
   );
 }
 
@@ -144,7 +160,13 @@ const littleThingSchema = z.object({
 
 export async function saveLittleThing(input: z.input<typeof littleThingSchema>) {
   return runAdmin(littleThingSchema, input, [TAGS.littleThings], async (t, supabase) => {
-    const values = { title: t.title, body: t.body, emoji: t.emoji, photo_id: t.photoId, published: t.published };
+    const values = {
+      title: t.title,
+      body: t.body,
+      emoji: t.emoji,
+      photo_id: t.photoId,
+      published: t.published,
+    };
     if (t.id) {
       check(await supabase.from("little_things").update(values).eq("id", t.id), "card");
     } else {
@@ -183,9 +205,7 @@ const timelineSchema = z.object({
   title: z.string().trim().min(1, "Add a title").max(200),
   story: optionalText(20_000),
   published: z.boolean(),
-  media: z
-    .array(z.object({ kind: z.enum(["photo", "video"]), id: uuid }))
-    .max(40),
+  media: z.array(z.object({ kind: z.enum(["photo", "video"]), id: uuid })).max(40),
 });
 
 export async function saveTimelineEvent(input: z.input<typeof timelineSchema>) {

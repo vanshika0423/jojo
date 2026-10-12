@@ -39,12 +39,12 @@ export function PhotoPlaceholder({
             "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
         }}
       />
-      <div className="relative flex flex-col items-center gap-2 px-4 text-center text-cocoa/45">
+      <div className="text-cocoa/45 relative flex flex-col items-center gap-2 px-4 text-center">
         <span aria-hidden className={cn("font-serif leading-none", compact ? "text-3xl" : "text-5xl")}>
           ∞
         </span>
         {label && !compact ? (
-          <span className="max-w-[16rem] text-[0.7rem] uppercase tracking-[0.2em]">{label}</span>
+          <span className="max-w-[16rem] text-[0.7rem] tracking-[0.2em] uppercase">{label}</span>
         ) : null}
       </div>
     </div>

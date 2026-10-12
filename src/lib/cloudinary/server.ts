@@ -7,14 +7,9 @@ import { cloudinaryCloudName } from "@/lib/env";
 const apiKey = process.env.CLOUDINARY_API_KEY ?? "";
 const apiSecret = process.env.CLOUDINARY_API_SECRET ?? "";
 
-export const UPLOAD_ROOT = (process.env.CLOUDINARY_FOLDER || "forever-jojo").replace(
-  /[^a-z0-9-_/]/gi,
-  "",
-);
+export const UPLOAD_ROOT = (process.env.CLOUDINARY_FOLDER || "forever-jojo").replace(/[^a-z0-9-_/]/gi, "");
 
-export const isCloudinaryServerConfigured = Boolean(
-  cloudinaryCloudName && apiKey && apiSecret,
-);
+export const isCloudinaryServerConfigured = Boolean(cloudinaryCloudName && apiKey && apiSecret);
 
 cloudinary.config({
   cloud_name: cloudinaryCloudName,

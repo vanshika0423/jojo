@@ -64,10 +64,7 @@ export const settingsSchemas = {
 export type SettingsKey = keyof typeof settingsSchemas;
 
 /** Merge a stored JSON value over the defaults, ignoring anything invalid. */
-export function parseSetting<K extends SettingsKey>(
-  key: K,
-  value: unknown,
-): SiteSettings[K] {
+export function parseSetting<K extends SettingsKey>(key: K, value: unknown): SiteSettings[K] {
   const merged = {
     ...defaultSettings[key],
     ...(value && typeof value === "object" ? value : {}),

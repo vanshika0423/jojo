@@ -126,8 +126,12 @@
 
   .paper {
     background-color: #fffdf9;
-    background-image:
-      linear-gradient(transparent 0, transparent calc(2rem - 1px), color-mix(in oklab, var(--color-taupe) 18%, transparent) calc(2rem - 1px), color-mix(in oklab, var(--color-taupe) 18%, transparent) 2rem);
+    background-image: linear-gradient(
+      transparent 0,
+      transparent calc(2rem - 1px),
+      color-mix(in oklab, var(--color-taupe) 18%, transparent) calc(2rem - 1px),
+      color-mix(in oklab, var(--color-taupe) 18%, transparent) 2rem
+    );
     background-size: 100% 2rem;
   }
 

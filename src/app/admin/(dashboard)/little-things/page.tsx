@@ -9,7 +9,9 @@ export default async function AdminLittleThingsPage() {
   const things = await getAdminLittleThings();
   return (
     <>
-      <PageTitle title="Little Things">The playful cards about Jojo’s favourite things. The first four also appear on the homepage.</PageTitle>
+      <PageTitle title="Little Things">
+        The playful cards about Jojo’s favourite things. The first four also appear on the homepage.
+      </PageTitle>
       <LittleThingsEditor things={things} />
     </>
   );

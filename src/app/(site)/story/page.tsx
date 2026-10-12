@@ -23,11 +23,13 @@ export default async function StoryPage() {
       </PageHeader>
 
       <nav aria-label="Chapters" className="mx-auto mb-10 max-w-3xl px-6">
-        <ol className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-cocoa/65">
+        <ol className="text-cocoa/65 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
           {sections.map((s, i) => (
             <li key={s.id}>
-              <a href={`#${s.slug}`} className="underline-offset-4 hover:text-cocoa hover:underline">
-                <span className="mr-1 font-serif italic text-taupe-dark">{String(i + 1).padStart(2, "0")}</span>
+              <a href={`#${s.slug}`} className="hover:text-cocoa underline-offset-4 hover:underline">
+                <span className="text-taupe-dark mr-1 font-serif italic">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
                 {s.title}
               </a>
             </li>
@@ -36,9 +38,14 @@ export default async function StoryPage() {
       </nav>
 
       {sections.map((section, i) => (
-        <section key={section.id} id={section.slug} aria-labelledby={`${section.slug}-title`} className="scroll-mt-24">
+        <section
+          key={section.id}
+          id={section.slug}
+          aria-labelledby={`${section.slug}-title`}
+          className="scroll-mt-24"
+        >
           <Reveal className="mx-auto max-w-6xl px-4 py-10 sm:px-8">
-            <div className="relative aspect-[3/2] overflow-hidden rounded-[var(--radius-photo)] bg-cream sm:aspect-[21/9]">
+            <div className="bg-cream relative aspect-[3/2] overflow-hidden rounded-[var(--radius-photo)] sm:aspect-[21/9]">
               <Parallax className="absolute inset-0" strength={36}>
                 <div className="relative h-full w-full">
                   <PhotoFrame
@@ -51,13 +58,15 @@ export default async function StoryPage() {
               </Parallax>
             </div>
             {section.photo?.caption ? (
-              <p className="mt-3 text-center font-serif text-base italic text-taupe-dark">{section.photo.caption}</p>
+              <p className="text-taupe-dark mt-3 text-center font-serif text-base italic">
+                {section.photo.caption}
+              </p>
             ) : null}
           </Reveal>
-          <div className="mx-auto max-w-2xl px-6 pb-20 pt-6 sm:pb-28">
+          <div className="mx-auto max-w-2xl px-6 pt-6 pb-20 sm:pb-28">
             <Reveal>
               <p className="eyebrow">Chapter {String(i + 1).padStart(2, "0")}</p>
-              <h2 id={`${section.slug}-title`} className="mt-3 text-4xl text-cocoa sm:text-5xl">
+              <h2 id={`${section.slug}-title`} className="text-cocoa mt-3 text-4xl sm:text-5xl">
                 {section.title}
               </h2>
             </Reveal>

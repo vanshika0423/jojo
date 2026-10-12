@@ -97,13 +97,7 @@ export function sanitizeSearch(q: string | null | undefined) {
     .slice(0, 60);
 }
 
-async function queryPhotos({
-  album,
-  favourites,
-  q,
-  offset = 0,
-  limit = 40,
-}: PhotoQuery): Promise<PhotoPage> {
+async function queryPhotos({ album, favourites, q, offset = 0, limit = 40 }: PhotoQuery): Promise<PhotoPage> {
   const supabase = getPublicClient();
   if (!supabase) return { photos: [], total: 0, hasMore: false };
 

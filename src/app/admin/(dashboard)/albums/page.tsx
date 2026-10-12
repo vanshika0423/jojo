@@ -9,7 +9,9 @@ export default async function AdminAlbumsPage() {
   const albums = await getAdminAlbums();
   return (
     <>
-      <PageTitle title="Albums">Create, rename, reorder and remove albums. Add photos to albums from the Photos page.</PageTitle>
+      <PageTitle title="Albums">
+        Create, rename, reorder and remove albums. Add photos to albums from the Photos page.
+      </PageTitle>
       <AlbumManager albums={albums} />
     </>
   );

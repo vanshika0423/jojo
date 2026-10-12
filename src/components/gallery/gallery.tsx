@@ -143,7 +143,7 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
 
   return (
     <div>
-      <div className="sticky top-16 z-30 -mx-5 mb-8 bg-ivory/90 px-5 py-4 backdrop-blur-md sm:top-20 sm:mx-0 sm:rounded-full sm:px-4">
+      <div className="bg-ivory/90 sticky top-16 z-30 -mx-5 mb-8 px-5 py-4 backdrop-blur-md sm:top-20 sm:mx-0 sm:rounded-full sm:px-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <nav aria-label="Albums" className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1">
             {chips.map((chip) => {
@@ -171,7 +171,7 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
               value={query}
               onChange={(e) => onSearch(e.target.value)}
               placeholder="Search captions or tags…"
-              className="w-full rounded-full border border-taupe/50 bg-white/80 px-5 py-2.5 text-sm placeholder:text-taupe-dark/80 focus:border-sage-dark focus:outline-none"
+              className="border-taupe/50 placeholder:text-taupe-dark/80 focus:border-sage-dark w-full rounded-full border bg-white/80 px-5 py-2.5 text-sm focus:outline-none"
               disabled={placeholderMode}
             />
           </label>
@@ -179,19 +179,19 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
       </div>
 
       {placeholderMode ? (
-        <p className="mb-8 text-center font-serif text-lg italic text-taupe-dark">
+        <p className="text-taupe-dark mb-8 text-center font-serif text-lg italic">
           Jojo’s photographs will appear here as soon as they are uploaded and published.
         </p>
       ) : null}
 
       {current?.error ? (
-        <p role="alert" className="mb-8 text-center text-sm text-taupe-dark">
+        <p role="alert" className="text-taupe-dark mb-8 text-center text-sm">
           Some photos couldn’t load. Please check your connection and try again.
         </p>
       ) : null}
 
       {current && photos.length === 0 && !loading && !placeholderMode ? (
-        <p className="py-24 text-center font-serif text-2xl italic text-taupe-dark">
+        <p className="text-taupe-dark py-24 text-center font-serif text-2xl italic">
           {urlQuery ? "No memories match that search yet." : "No photographs in this album yet."}
         </p>
       ) : null}
@@ -214,7 +214,7 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
                 <button
                   type="button"
                   onClick={() => setLightboxIndex(index)}
-                  className="photo-zoom group relative block w-full overflow-hidden rounded-[var(--radius-photo)] bg-cream text-left"
+                  className="photo-zoom group bg-cream relative block w-full overflow-hidden rounded-[var(--radius-photo)] text-left"
                   style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
                   aria-label={photo.caption ? `Open photo: ${photo.caption}` : "Open photo"}
                 >
@@ -227,13 +227,13 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
                   {photo.isFavourite ? (
                     <span
                       aria-label="Favourite"
-                      className="absolute right-3 top-3 rounded-full bg-ivory/85 px-2 py-0.5 text-xs text-cocoa backdrop-blur"
+                      className="bg-ivory/85 text-cocoa absolute top-3 right-3 rounded-full px-2 py-0.5 text-xs backdrop-blur"
                     >
                       ♥
                     </span>
                   ) : null}
                   {photo.caption ? (
-                    <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-cocoa-deep/70 to-transparent px-4 pb-3 pt-10 font-serif text-base italic text-ivory opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-focus-visible:opacity-100">
+                    <span className="from-cocoa-deep/70 text-ivory pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent px-4 pt-10 pb-3 font-serif text-base italic opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-focus-visible:opacity-100">
                       {photo.caption}
                     </span>
                   ) : null}
@@ -246,7 +246,7 @@ export function Gallery({ albums, initial, allowDownloads, placeholderMode }: Ga
 
       <div ref={sentinel} aria-hidden className="h-px" />
       {loading ? (
-        <p className="py-10 text-center text-sm tracking-[0.2em] text-taupe-dark uppercase" role="status">
+        <p className="text-taupe-dark py-10 text-center text-sm tracking-[0.2em] uppercase" role="status">
           Gathering more memories…
         </p>
       ) : null}
@@ -276,7 +276,7 @@ export function GallerySkeleton() {
       {Array.from({ length: Math.min(GALLERY_PAGE_SIZE, 12) }, (_, i) => (
         <div
           key={i}
-          className="animate-pulse rounded-[var(--radius-photo)] bg-cream"
+          className="bg-cream animate-pulse rounded-[var(--radius-photo)]"
           style={{ aspectRatio: i % 3 === 0 ? "4 / 5" : i % 3 === 1 ? "1 / 1" : "3 / 2" }}
         />
       ))}

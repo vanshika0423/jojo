@@ -1,10 +1,6 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import {
-  isSupabaseConfigured,
-  supabasePublishableKey,
-  supabaseUrl,
-} from "@/lib/env";
+import { isSupabaseConfigured, supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 let client: SupabaseClient | null = null;
 

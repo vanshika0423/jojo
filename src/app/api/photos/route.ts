@@ -14,8 +14,6 @@ const querySchema = z.object({
   offset: z.coerce.number().int().min(0).max(100_000).default(0),
 });
 
-
-
 /** Public, read-only paging for the gallery. Only published photos are returned. */
 export async function GET(request: NextRequest) {
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));

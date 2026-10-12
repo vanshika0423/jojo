@@ -12,8 +12,8 @@ export default async function AdminVideosPage() {
   return (
     <>
       <PageTitle title="Videos">
-        Upload videos, set their thumbnails and choose one to feature on the homepage. Cloudinary compresses each video for
-        smooth playback on phones.
+        Upload videos, set their thumbnails and choose one to feature on the homepage. Cloudinary compresses
+        each video for smooth playback on phones.
       </PageTitle>
       {!isCloudinaryServerConfigured ? <SetupNotice service="Cloudinary" /> : null}
       <Card className="mb-8">

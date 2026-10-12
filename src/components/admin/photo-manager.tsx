@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { saveSettings } from "@/app/admin/actions/content";
-import { bulkUpdatePhotos, listPhotos, movePhoto, replacePhoto, updatePhoto } from "@/app/admin/actions/media";
+import {
+  bulkUpdatePhotos,
+  listPhotos,
+  movePhoto,
+  replacePhoto,
+  updatePhoto,
+} from "@/app/admin/actions/media";
 import { Thumb } from "@/components/admin/thumb";
 import { notify, report } from "@/components/admin/toast";
 import { ConfirmButton, Drawer, EmptyState, Field, StatusPill, Toggle } from "@/components/admin/ui";
@@ -122,7 +128,8 @@ export function PhotoManager({
     startTransition(async () => {
       const first = list.photos[0];
       if (!first || first.id === photo.id) return;
-      if (report(await movePhoto({ id: photo.id, afterId: null, beforeId: first.id }), "Moved to the top")) await reload();
+      if (report(await movePhoto({ id: photo.id, afterId: null, beforeId: first.id }), "Moved to the top"))
+        await reload();
     });
 
   return (
@@ -137,7 +144,7 @@ export function PhotoManager({
               onClick={() => setFilter(f.value)}
               className={cn(
                 "shrink-0 rounded-full px-4 py-1.5 text-sm",
-                filter === f.value ? "bg-cocoa text-ivory" : "bg-white text-cocoa/80 hover:bg-cream",
+                filter === f.value ? "bg-cocoa text-ivory" : "text-cocoa/80 hover:bg-cream bg-white",
               )}
             >
               {f.label}
@@ -170,15 +177,23 @@ export function PhotoManager({
       </div>
 
       {selected.size ? (
-        <div className="sticky top-28 z-30 mb-5 flex flex-wrap items-center gap-2 rounded-2xl bg-cocoa px-4 py-3 text-sm text-ivory shadow-lg lg:top-4">
+        <div className="bg-cocoa text-ivory sticky top-28 z-30 mb-5 flex flex-wrap items-center gap-2 rounded-2xl px-4 py-3 text-sm shadow-lg lg:top-4">
           <span className="mr-2 font-medium">{selected.size} selected</span>
-          <BulkButton onClick={() => runBulk("publish", "Published")} disabled={pending}>Publish</BulkButton>
-          <BulkButton onClick={() => runBulk("unpublish", "Unpublished")} disabled={pending}>Unpublish</BulkButton>
-          <BulkButton onClick={() => runBulk("favourite", "Favourited")} disabled={pending}>♥ Favourite</BulkButton>
-          <BulkButton onClick={() => runBulk("unfavourite", "Updated")} disabled={pending}>Unfavourite</BulkButton>
+          <BulkButton onClick={() => runBulk("publish", "Published")} disabled={pending}>
+            Publish
+          </BulkButton>
+          <BulkButton onClick={() => runBulk("unpublish", "Unpublished")} disabled={pending}>
+            Unpublish
+          </BulkButton>
+          <BulkButton onClick={() => runBulk("favourite", "Favourited")} disabled={pending}>
+            ♥ Favourite
+          </BulkButton>
+          <BulkButton onClick={() => runBulk("unfavourite", "Updated")} disabled={pending}>
+            Unfavourite
+          </BulkButton>
           <select
             aria-label="Album for selected photos"
-            className="rounded-full bg-ivory/15 px-3 py-1.5 text-ivory"
+            className="bg-ivory/15 text-ivory rounded-full px-3 py-1.5"
             value={bulkAlbum}
             onChange={(e) => setBulkAlbum(e.target.value)}
           >
@@ -189,10 +204,18 @@ export function PhotoManager({
               </option>
             ))}
           </select>
-          <BulkButton onClick={() => runBulk("addToAlbum", "Added")} disabled={pending || !bulkAlbum}>Add to album</BulkButton>
-          <BulkButton onClick={() => runBulk("removeFromAlbum", "Removed")} disabled={pending || !bulkAlbum}>Remove from album</BulkButton>
+          <BulkButton onClick={() => runBulk("addToAlbum", "Added")} disabled={pending || !bulkAlbum}>
+            Add to album
+          </BulkButton>
+          <BulkButton onClick={() => runBulk("removeFromAlbum", "Removed")} disabled={pending || !bulkAlbum}>
+            Remove from album
+          </BulkButton>
           <span className="ml-auto flex items-center gap-2">
-            <ConfirmButton onConfirm={() => runBulk("delete", "Deleted")} className="!border-ivory/40 !text-ivory" confirmLabel={`Delete ${selected.size}`}>
+            <ConfirmButton
+              onConfirm={() => runBulk("delete", "Deleted")}
+              className="!border-ivory/40 !text-ivory"
+              confirmLabel={`Delete ${selected.size}`}
+            >
               Delete
             </ConfirmButton>
             <BulkButton onClick={() => setSelected(new Set())}>Clear</BulkButton>
@@ -200,7 +223,7 @@ export function PhotoManager({
         </div>
       ) : null}
 
-      <div className="mb-3 flex items-center justify-between text-xs text-taupe-dark">
+      <div className="text-taupe-dark mb-3 flex items-center justify-between text-xs">
         <span aria-live="polite">
           {loading ? "Loading…" : `${list.total} photo${list.total === 1 ? "" : "s"}`}
           {canReorder && list.photos.length > 1 ? " · drag photos to change their order on the website" : ""}
@@ -210,7 +233,9 @@ export function PhotoManager({
             type="button"
             className="underline"
             onClick={() =>
-              setSelected((s) => (s.size === list.photos.length ? new Set() : new Set(list.photos.map((p) => p.id))))
+              setSelected((s) =>
+                s.size === list.photos.length ? new Set() : new Set(list.photos.map((p) => p.id)),
+              )
             }
           >
             {selected.size === list.photos.length ? "Select none" : "Select all shown"}
@@ -237,8 +262,8 @@ export function PhotoManager({
                   type="button"
                   onClick={() => setEditing(photo)}
                   className={cn(
-                    "block w-full overflow-hidden rounded-xl ring-offset-2 ring-offset-ivory transition",
-                    isSelected ? "ring-2 ring-cocoa" : "hover:ring-2 hover:ring-taupe",
+                    "ring-offset-ivory block w-full overflow-hidden rounded-xl ring-offset-2 transition",
+                    isSelected ? "ring-cocoa ring-2" : "hover:ring-taupe hover:ring-2",
                   )}
                   aria-label={`Edit ${photo.caption ?? photo.originalFilename ?? "photo"}`}
                 >
@@ -249,13 +274,15 @@ export function PhotoManager({
                   checked={isSelected}
                   onChange={() => toggleSelect(photo.id)}
                   aria-label="Select photo"
-                  className="absolute left-2 top-2 h-5 w-5 accent-cocoa"
+                  className="accent-cocoa absolute top-2 left-2 h-5 w-5"
                 />
                 <span className="pointer-events-none absolute bottom-1.5 left-1.5 flex gap-1">
                   {!photo.published ? (
-                    <span className="rounded-full bg-ivory/90 px-1.5 text-[10px] text-cocoa">Draft</span>
+                    <span className="bg-ivory/90 text-cocoa rounded-full px-1.5 text-[10px]">Draft</span>
                   ) : null}
-                  {photo.isFavourite ? <span className="rounded-full bg-ivory/90 px-1.5 text-[10px]">♥</span> : null}
+                  {photo.isFavourite ? (
+                    <span className="bg-ivory/90 rounded-full px-1.5 text-[10px]">♥</span>
+                  ) : null}
                 </span>
               </li>
             );
@@ -265,7 +292,12 @@ export function PhotoManager({
 
       {list.hasMore ? (
         <div className="mt-6 text-center">
-          <button type="button" className="btn btn-ghost" disabled={loading} onClick={() => load(list.photos.length)}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={loading}
+            onClick={() => load(list.photos.length)}
+          >
             {loading ? "Loading…" : "Load more"}
           </button>
         </div>
@@ -293,7 +325,11 @@ export function PhotoManager({
 
 function BulkButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button type="button" className="rounded-full bg-ivory/15 px-3 py-1.5 hover:bg-ivory/25 disabled:opacity-40" {...props}>
+    <button
+      type="button"
+      className="bg-ivory/15 hover:bg-ivory/25 rounded-full px-3 py-1.5 disabled:opacity-40"
+      {...props}
+    >
       {children}
     </button>
   );
@@ -326,7 +362,8 @@ function PhotoEditor({
   });
   const [pending, startTransition] = useTransition();
   const [replaceProgress, setReplaceProgress] = useState<number | null>(null);
-  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
   const save = () =>
     startTransition(async () => {
@@ -335,7 +372,10 @@ function PhotoEditor({
         caption: form.caption,
         alt: form.alt,
         takenOn: form.takenOn || null,
-        tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        tags: form.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
         isFavourite: form.isFavourite,
         allowDownload: form.allowDownload,
         published: form.published,
@@ -358,7 +398,10 @@ function PhotoEditor({
 
   const setAsHero = () =>
     startTransition(async () => {
-      report(await saveSettings({ key: "hero", value: { ...hero, photoId: photo.id } }), "Set as the homepage photo");
+      report(
+        await saveSettings({ key: "hero", value: { ...hero, photoId: photo.id } }),
+        "Set as the homepage photo",
+      );
     });
 
   const remove = () =>
@@ -369,7 +412,10 @@ function PhotoEditor({
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_1.1fr]">
       <div>
-        <div className="relative overflow-hidden rounded-xl bg-cream" style={{ aspectRatio: `${photo.width} / ${photo.height}` }}>
+        <div
+          className="bg-cream relative overflow-hidden rounded-xl"
+          style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
+        >
           {isCloudinaryConfigured && photo.publicId ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -379,7 +425,7 @@ function PhotoEditor({
             />
           ) : null}
         </div>
-        <dl className="mt-3 grid grid-cols-2 gap-1 text-xs text-taupe-dark">
+        <dl className="text-taupe-dark mt-3 grid grid-cols-2 gap-1 text-xs">
           <dt>File</dt>
           <dd className="truncate">{photo.originalFilename ?? "—"}</dd>
           <dt>Size</dt>
@@ -393,7 +439,12 @@ function PhotoEditor({
           </dd>
         </dl>
         <div className="mt-4 flex flex-wrap gap-2">
-          <label className={cn("btn btn-ghost !px-4 !py-2 cursor-pointer", replaceProgress !== null && "opacity-60")}>
+          <label
+            className={cn(
+              "btn btn-ghost cursor-pointer !px-4 !py-2",
+              replaceProgress !== null && "opacity-60",
+            )}
+          >
             {replaceProgress !== null ? `Replacing… ${Math.round(replaceProgress * 100)}%` : "Replace file"}
             <input
               type="file"
@@ -407,11 +458,21 @@ function PhotoEditor({
               }}
             />
           </label>
-          <button type="button" className="btn btn-ghost !px-4 !py-2" onClick={setAsHero} disabled={pending || !photo.published}>
+          <button
+            type="button"
+            className="btn btn-ghost !px-4 !py-2"
+            onClick={setAsHero}
+            disabled={pending || !photo.published}
+          >
             Use as homepage photo
           </button>
           {canReorder ? (
-            <button type="button" className="btn btn-ghost !px-4 !py-2" onClick={onMoveToTop} disabled={pending}>
+            <button
+              type="button"
+              className="btn btn-ghost !px-4 !py-2"
+              onClick={onMoveToTop}
+              disabled={pending}
+            >
               Move to top
             </button>
           ) : null}
@@ -422,19 +483,48 @@ function PhotoEditor({
       <div className="space-y-5">
         <Field label="Caption" hint="Shown under the photo and used for search.">
           {(id) => (
-            <textarea id={id} rows={3} className="field" value={form.caption} maxLength={1000} onChange={(e) => set("caption", e.target.value)} />
+            <textarea
+              id={id}
+              rows={3}
+              className="field"
+              value={form.caption}
+              maxLength={1000}
+              onChange={(e) => set("caption", e.target.value)}
+            />
           )}
         </Field>
         <Field label="Date taken (optional)">
           {(id) => (
-            <input id={id} type="date" min="2017-03-11" className="field" value={form.takenOn} onChange={(e) => set("takenOn", e.target.value)} />
+            <input
+              id={id}
+              type="date"
+              min="2017-03-11"
+              className="field"
+              value={form.takenOn}
+              onChange={(e) => set("takenOn", e.target.value)}
+            />
           )}
         </Field>
         <Field label="Tags (optional)" hint="Separate with commas, e.g. beach, birthday, sleepy">
-          {(id) => <input id={id} className="field" value={form.tags} onChange={(e) => set("tags", e.target.value)} />}
+          {(id) => (
+            <input
+              id={id}
+              className="field"
+              value={form.tags}
+              onChange={(e) => set("tags", e.target.value)}
+            />
+          )}
         </Field>
         <Field label="Description for screen readers (optional)" hint="If empty, the caption is used.">
-          {(id) => <input id={id} className="field" value={form.alt} maxLength={300} onChange={(e) => set("alt", e.target.value)} />}
+          {(id) => (
+            <input
+              id={id}
+              className="field"
+              value={form.alt}
+              maxLength={300}
+              onChange={(e) => set("alt", e.target.value)}
+            />
+          )}
         </Field>
         <div>
           <p className="label">Albums</p>
@@ -446,8 +536,13 @@ function PhotoEditor({
                   key={a.id}
                   type="button"
                   aria-pressed={on}
-                  onClick={() => set("albumIds", on ? form.albumIds.filter((x) => x !== a.id) : [...form.albumIds, a.id])}
-                  className={cn("rounded-full px-3 py-1 text-xs", on ? "bg-cocoa text-ivory" : "bg-cream text-cocoa/80")}
+                  onClick={() =>
+                    set("albumIds", on ? form.albumIds.filter((x) => x !== a.id) : [...form.albumIds, a.id])
+                  }
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs",
+                    on ? "bg-cocoa text-ivory" : "bg-cream text-cocoa/80",
+                  )}
                 >
                   {a.name}
                 </button>
@@ -456,11 +551,26 @@ function PhotoEditor({
           </div>
         </div>
         <div className="space-y-4 rounded-2xl bg-white p-4">
-          <Toggle label="Published" description="Visible on the website" checked={form.published} onChange={(v) => set("published", v)} />
-          <Toggle label="Favourite" description="Appears in “Our Favourites” and on the homepage" checked={form.isFavourite} onChange={(v) => set("isFavourite", v)} />
-          <Toggle label="Allow download" description="Only if downloads are switched on in Settings" checked={form.allowDownload} onChange={(v) => set("allowDownload", v)} />
+          <Toggle
+            label="Published"
+            description="Visible on the website"
+            checked={form.published}
+            onChange={(v) => set("published", v)}
+          />
+          <Toggle
+            label="Favourite"
+            description="Appears in “Our Favourites” and on the homepage"
+            checked={form.isFavourite}
+            onChange={(v) => set("isFavourite", v)}
+          />
+          <Toggle
+            label="Allow download"
+            description="Only if downloads are switched on in Settings"
+            checked={form.allowDownload}
+            onChange={(v) => set("allowDownload", v)}
+          />
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-taupe/25 pt-5">
+        <div className="border-taupe/25 flex flex-wrap items-center justify-between gap-3 border-t pt-5">
           <ConfirmButton onConfirm={remove} disabled={pending}>
             Delete photo
           </ConfirmButton>

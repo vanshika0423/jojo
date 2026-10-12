@@ -32,14 +32,14 @@ export function VideoModal({ video, onClose }: { video: Video | null; onClose: (
           role="dialog"
           aria-modal="true"
           aria-label={video.title ?? "Video of Jojo"}
-          className="fixed inset-0 z-[80] flex flex-col bg-cocoa-deep/95 backdrop-blur-sm"
+          className="bg-cocoa-deep/95 fixed inset-0 z-[80] flex flex-col backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.35 }}
         >
-          <div className="flex items-center justify-between px-4 py-3 text-ivory/80 sm:px-6">
-            <p className="truncate font-serif text-xl text-ivory">{video.title ?? ""}</p>
+          <div className="text-ivory/80 flex items-center justify-between px-4 py-3 sm:px-6">
+            <p className="text-ivory truncate font-serif text-xl">{video.title ?? ""}</p>
             <button
               ref={closeRef}
               type="button"
@@ -57,7 +57,7 @@ export function VideoModal({ video, onClose }: { video: Video | null; onClose: (
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           >
             {video.placeholder ? (
-              <p className="max-w-md text-center font-serif text-2xl text-ivory/80">
+              <p className="text-ivory/80 max-w-md text-center font-serif text-2xl">
                 Jojo’s videos will play here once they are uploaded.
               </p>
             ) : (
@@ -69,10 +69,10 @@ export function VideoModal({ video, onClose }: { video: Video | null; onClose: (
             )}
           </motion.div>
           {video.caption || video.recordedOn ? (
-            <div className="mx-auto max-w-3xl px-6 pb-8 text-center text-ivory/80">
+            <div className="text-ivory/80 mx-auto max-w-3xl px-6 pb-8 text-center">
               {video.caption ? <p className="font-serif text-lg italic">{video.caption}</p> : null}
               {video.recordedOn ? (
-                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-ivory/60">
+                <p className="text-ivory/60 mt-1 text-xs tracking-[0.2em] uppercase">
                   {formatDate(video.recordedOn)}
                 </p>
               ) : null}

@@ -9,7 +9,7 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-dvh items-center justify-center px-5 py-16">
       <div className="w-full max-w-sm">
-        <Link href="/" className="block text-center font-serif text-3xl text-cocoa">
+        <Link href="/" className="text-cocoa block text-center font-serif text-3xl">
           Forever Jojo <span aria-hidden>∞</span>
         </Link>
         <p className="eyebrow mt-3 text-center">Family dashboard</p>
@@ -17,8 +17,8 @@ export default function LoginPage() {
           {isSupabaseConfigured ? (
             <LoginForm />
           ) : (
-            <div className="space-y-3 text-sm text-cocoa/80">
-              <p className="font-medium text-cocoa">Almost there.</p>
+            <div className="text-cocoa/80 space-y-3 text-sm">
+              <p className="text-cocoa font-medium">Almost there.</p>
               <p>
                 Sign-in will work once Supabase is connected. Add the Supabase variables from{" "}
                 <code>.env.example</code> and follow the setup steps in <code>README.md</code>.
